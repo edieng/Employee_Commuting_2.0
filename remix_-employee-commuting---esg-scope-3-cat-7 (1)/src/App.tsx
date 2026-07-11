@@ -219,8 +219,8 @@ const DISTRICT_DATA: Record<string, DistrictConfig> = {
     estatesPri: ["Discovery Bay Phase 1", "Discovery Bay Phase 5", "Discovery Bay Phase 12", "La Vista"], 
     employees: 70, pubRatio: 0.01 
   },
-  "Islands District (離島區)": { 
-    name: "Islands District (離島區)", nameZH: "離島區", lat: 22.2084, lng: 114.0289, radius: 5.0, 
+  "Islands District": { 
+    name: "Islands District", nameZH: "離島區", lat: 22.2084, lng: 114.0289, radius: 5.0, 
     estatesPub: ["Cheung Kwai Estate", "Nga Ning Court", "Lung Tin Estate"], 
     estatesPri: ["Scenic Crest", "Peninsula Marina", "Seaview Crescent", "Cheung Chau Townhouse", "Lamma Beachside Villa"], 
     employees: 120, pubRatio: 0.40 
@@ -246,7 +246,7 @@ const LOCAL_GEODATA_BASE = [
   { name: "Rhine Garden", nameZH: "海韻花園", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3688, lng: 114.0621 },
   { name: "Bellagio", nameZH: "碧堤半島", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3676, lng: 114.0565 },
   { name: "Lido Garden", nameZH: "麗都花園", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3681, lng: 114.0581 },
-  { name: "Hong Kong Garden", nameZH: "青龍頭香港花園", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3615, lng: 114.0321 },
+  { name: "Hong Kong Garden", nameZH: "豪景花園", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3623, lng: 114.0401 },
   { name: "Bayview Garden", nameZH: "灣景花園", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3705, lng: 114.1051 },
   { name: "Greenview Court", nameZH: "翠濤閣", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3718, lng: 114.1042 },
   { name: "Serenade Cove", nameZH: "韻濤居", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3731, lng: 114.1032 },
@@ -524,15 +524,15 @@ const LOCAL_GEODATA_BASE = [
   { name: "Grand Central", nameZH: "凱匯", area: "Kwun Tong Town", type: "Private", lat: 22.3142, lng: 114.2255 },
   { name: "Kai Tak Phase I", nameZH: "啟德一號", area: "Kowloon City / Kai Tak", type: "Private", lat: 22.3278, lng: 114.2012 },
   
-  // Islands District (離島區)
-  { name: "Cheung Kwai Estate", nameZH: "長貴邨", area: "Islands District (離島區)", type: "Public", lat: 22.2132, lng: 114.0275 },
-  { name: "Nga Ning Court", nameZH: "雅寧苑", area: "Islands District (離島區)", type: "Public", lat: 22.2078, lng: 114.0295 },
-  { name: "Lung Tin Estate", nameZH: "龍田邨", area: "Islands District (離島區)", type: "Public", lat: 22.2568, lng: 113.8612 },
-  { name: "Scenic Crest", nameZH: "海景台", area: "Islands District (離島區)", type: "Private", lat: 22.2115, lng: 114.0252 },
-  { name: "Peninsula Marina", nameZH: "半島碼頭別墅", area: "Islands District (離島區)", type: "Private", lat: 22.2045, lng: 114.0322 },
-  { name: "Seaview Crescent", nameZH: "東涌海堤灣畔", area: "Islands District (離島區)", type: "Private", lat: 22.2895, lng: 113.9465 },
-  { name: "Cheung Chau Townhouse", nameZH: "長洲村屋", area: "Islands District (離島區)", type: "Private", lat: 22.2062, lng: 114.0281 },
-  { name: "Lamma Beachside Villa", nameZH: "南丫島海濱別墅", area: "Islands District (離島區)", type: "Private", lat: 22.2285, lng: 114.1205 },
+  // Islands District
+  { name: "Cheung Kwai Estate", nameZH: "長貴邨", area: "Islands District", type: "Public", lat: 22.2132, lng: 114.0275 },
+  { name: "Nga Ning Court", nameZH: "雅寧苑", area: "Islands District", type: "Public", lat: 22.2078, lng: 114.0295 },
+  { name: "Lung Tin Estate", nameZH: "龍田邨", area: "Islands District", type: "Public", lat: 22.2568, lng: 113.8612 },
+  { name: "Scenic Crest", nameZH: "海景台", area: "Islands District", type: "Private", lat: 22.2115, lng: 114.0252 },
+  { name: "Peninsula Marina", nameZH: "半島碼頭別墅", area: "Islands District", type: "Private", lat: 22.2045, lng: 114.0322 },
+  { name: "Seaview Crescent", nameZH: "東涌海堤灣畔", area: "Islands District", type: "Private", lat: 22.2895, lng: 113.9465 },
+  { name: "Cheung Chau Townhouse", nameZH: "長洲村屋", area: "Islands District", type: "Private", lat: 22.2062, lng: 114.0281 },
+  { name: "Lamma Beachside Villa", nameZH: "南丫島海濱別墅", area: "Islands District", type: "Private", lat: 22.2285, lng: 114.1205 },
   
   // Tung Chung / Airport
   { name: "Yat Tung Estate", nameZH: "逸東邨", area: "Tung Chung / Airport", type: "Public", lat: 22.2818, lng: 113.9351 },
@@ -601,7 +601,7 @@ const getHKRoadFactor = (districtName: string) => {
     "Tuen Mun Town & North", "Tuen Mun South / Gold Coast", "Yuen Long Town", "Tin Shui Wai",
     "Fanling / Sheung Shui", "Tai Po Town", "Sha Tin / Tai Wai", "Ma On Shan / Fo Tan",
     "Tseung Kwan O", "Sai Kung Town", "Tung Chung / Airport", "Discovery Bay", "Tsuen Wan West / Sham Tseng",
-    "Ma Wan / Park Island", "Tsing Yi", "Islands District (離島區)"
+    "Ma Wan / Park Island", "Tsing Yi", "Islands District"
   ];
   return ntDistricts.includes(districtName) ? 1.38 : 1.28;
 };
