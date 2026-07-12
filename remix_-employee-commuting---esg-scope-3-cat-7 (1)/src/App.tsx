@@ -1719,7 +1719,7 @@ export default function App() {
         setBatchFixSiteTarget(customSites[0]?.name || "");
         setIsCSVPreviewOpen(true);
       } else {
-        alert("Could not parse CSV correctly. Please check headers: 'Employee ID', 'District', 'Commute Mode', 'Assigned Work Site'.");
+        alert("Could not parse CSV correctly. Please check headers: 'Employee ID', 'District', 'Commute Mode', 'Assigned Work Site', 'Workforce Category'.");
       }
     };
     reader.readAsText(file);
@@ -3025,7 +3025,7 @@ export default function App() {
                   </div>
 
                   <div className="text-[10px] text-slate-500 max-w-sm bg-white p-1.5 rounded border border-slate-200 leading-normal shrink-0">
-                    <strong className="text-slate-700">CSV Columns:</strong> <code className="bg-slate-100 px-1 py-0.5 rounded text-red-600 font-mono">Employee ID</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-red-600 font-mono">Home District</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-red-600 font-mono">Transport Mode</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-red-600 font-mono">Assigned Work Site</code>
+                    <strong className="text-slate-700">CSV Columns:</strong> <code className="bg-slate-100 px-1 py-0.5 rounded text-red-600 font-mono">Employee ID</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-red-600 font-mono">Home District</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-red-600 font-mono">Transport Mode</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-red-600 font-mono">Assigned Work Site</code>, <code className="bg-slate-100 px-1 py-0.5 rounded text-red-600 font-mono">Workforce Category</code>
                   </div>
                 </div>
 
