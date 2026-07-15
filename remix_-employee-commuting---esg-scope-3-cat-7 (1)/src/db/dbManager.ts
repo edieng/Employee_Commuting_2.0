@@ -88,7 +88,22 @@ function ensureLocalDbFile() {
       configs: {},
       customSites: [
         { id: "SITE-QB", name: "Quarry Bay Hub (Taikoo Place)", district: "Quarry Bay / Taikoo", lat: 22.2854, lng: 114.2128, staffCount: 200, visible: true, siteCode: "SITE-01" },
-        { id: "SITE-KT", name: "Kwun Tong Office (Millennium City)", district: "Kwun Tong Town", lat: 22.3134, lng: 114.2238, staffCount: 100, visible: true, siteCode: "SITE-02" }
+        { id: "SITE-KT", name: "Kwun Tong Office (Millennium City)", district: "Kwun Tong Town", lat: 22.3134, lng: 114.2238, staffCount: 100, visible: true, siteCode: "SITE-02" }, 
+        { id: "SITE-CKC", name: "Cheung Kong Centre", district: "Central", lat: 22.2799, lng: 114.1603, staffCount: 100, visible: true, siteCode: "SITE-03" },
+        { id: "SITE-AH", name: "HKL - Alexandra House", district: "Central", lat: 22.2817, lng: 114.1586, staffCount: 100, visible: true, siteCode: "SITE-04" },
+        { id: "SITE-LM", name: "HKL - Landmark", district: "Central", lat: 22.2814, lng: 114.1584, staffCount: 100, visible: true, siteCode: "SITE-05" },
+        { id: "SITE-ES", name: "HKL - Exchange Square", district: "Central", lat: 22.2840, lng: 114.1581, staffCount: 100, visible: true, siteCode: "SITE-06" },
+        { id: "SITE-GEC", name: "Wharf - Great Eagle Centre", district: "Wan Chai", lat: 22.2804, lng: 114.1751, staffCount: 100, visible: true, siteCode: "SITE-07" },
+        { id: "SITE-LP", name: "Wharf - Langham Place", district: "Mong Kok", lat: 22.3191, lng: 114.1685, staffCount: 100, visible: true, siteCode: "SITE-08" },
+        { id: "SITE-TGR", name: "Wharf - Three Garden Road", district: "Central", lat: 22.2789, lng: 114.1611, staffCount: 100, visible: true, siteCode: "SITE-09" },
+        { id: "SITE-UCH", name: "United Christian Hospital", district: "Kwun Tong", lat: 22.3223, lng: 114.2281, staffCount: 100, visible: true, siteCode: "SITE-10" },
+        { id: "SITE-CUMC", name: "Chinese University Medical Centre (CUMC)", district: "Sha Tin", lat: 22.4143, lng: 114.2109, staffCount: 100, visible: true, siteCode: "SITE-11" },
+        { id: "SITE-TKOH", name: "Tsueng Kwan O Hospital", district: "Tseung Kwan O", lat: 22.3168, lng: 114.2676, staffCount: 100, visible: true, siteCode: "SITE-12" },
+        { id: "SITE-YCH", name: "Yan Chai Hospital", district: "Mei Foo", lat: 22.3372, lng: 114.1190, staffCount: 100, visible: true, siteCode: "SITE-13" },
+        { id: "SITE-PMH", name: "Princess Margaret Hospital", district: "Kwai Tsing", lat: 22.3421, lng: 114.1351, staffCount: 100, visible: true, siteCode: "SITE-14" },
+        { id: "SITE-PAM1", name: "PAM 1", district: "Tuen Mun", lat: 22.3, lng: 114.2361, staffCount: 100, visible: true, siteCode: "SITE-15" },
+        { id: "SITE-PAM2", name: "PAM 2", district: "Tuen Mun", lat: 22.2692, lng: 114.2362, staffCount: 100, visible: true, siteCode: "SITE-16" },
+        { id: "SITE-PAM3", name: "PAM 3", district: "Tuen Mun", lat: 22.2693, lng: 114.2363, staffCount: 100, visible: true, siteCode: "SITE-17" }
       ],
       employeeRoster: []
     };
