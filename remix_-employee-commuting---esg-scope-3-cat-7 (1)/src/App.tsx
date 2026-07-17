@@ -20,7 +20,7 @@ interface DistrictConfig {
   pubRatio: number;  // Public vs Private housing split
 }
 
-const DISTRICT_DATA: Record<string, DistrictConfig> = {
+export const DISTRICT_DATA: Record<string, DistrictConfig> = {
   "Tsuen Wan West / Sham Tseng": { 
     name: "Tsuen Wan West / Sham Tseng", nameZH: "荃灣西 / 深井", lat: 22.3701, lng: 114.0765, radius: 3.5, 
     estatesPub: ["Fuk Loi Estate", "Lei Muk Shue Estate"], 
@@ -228,19 +228,19 @@ const DISTRICT_DATA: Record<string, DistrictConfig> = {
 };
 
 // ==========================================
-// POPULAR HK OFFICE LOCATIONS (PRESETS)
+// ISSHK OFFICE LOCATIONS (PRESETS)
 // ==========================================
 
-const OFFICE_PRESETS = [
-  { name: "Taikoo Place, Quarry Bay (Headquarter)", lat: 22.2854, lng: 114.2128 },
-  { name: "Millennium City, Kwun Tong", lat: 22.3134, lng: 114.2238 }
+export const OFFICE_PRESETS = [
+  { name: "Quarry Bay Office", lat: 22.2854, lng: 114.2128 },
+  { name: "Kwun Tong Office", lat: 22.3134, lng: 114.2238 }
 ];
 
 // ==========================================
 // MASSIVE HK RESIDENTIAL GEODATA DECK (70% OF HK RESIDENCES)
 // ==========================================
 
-const LOCAL_GEODATA_BASE = [
+export const LOCAL_GEODATA_BASE = [
   // Tsuen Wan West / Sham Tseng
   { name: "Belvedere Garden", nameZH: "麗城花園", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3707, lng: 114.1039 },
   { name: "Rhine Garden", nameZH: "海韻花園", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3688, lng: 114.0621 },
@@ -686,8 +686,8 @@ export default function App() {
 
   // Dynamic Custom Work Sites State
   const [customSites, setCustomSites] = useState<CustomWorkSite[]>(() => loadState("customSites", [
-    { id: "SITE-QB", name: "Quarry Bay Hub (Taikoo Place)", district: "Quarry Bay / Taikoo", lat: 22.2854, lng: 114.2128, staffCount: 200, visible: true, siteCode: "SITE-01" },
-    { id: "SITE-KT", name: "Kwun Tong Office (Millennium City)", district: "Kwun Tong Town", lat: 22.3134, lng: 114.2238, staffCount: 100, visible: true, siteCode: "SITE-02" }
+    { id: "SITE-QB", name: "Quarry Bay Office", district: "Quarry Bay / Taikoo", lat: 22.2854, lng: 114.2128, staffCount: 200, visible: true, siteCode: "SITE-01" },
+    { id: "SITE-KT", name: "Kwun Tong Office", district: "Kwun Tong Town", lat: 22.3134, lng: 114.2238, staffCount: 100, visible: true, siteCode: "SITE-02" }
   ]));
 
   // Form states for adding a new custom site
@@ -784,14 +784,14 @@ export default function App() {
     district: "Kwun Tong Town",
     mode: "MTR" as any,
     housingType: "Public" as any,
-    site: customSites.length > 0 ? getSiteWording(customSites[0]) : "Quarry Bay Hub (Taikoo Place)" as any,
+    site: customSites.length > 0 ? getSiteWording(customSites[0]) : "Quarry Bay Office" as any,
     workerType: "Office" as 'Office' | 'Frontline'
   });
 
   // Sync batchEditValue when batchEditField or customSites changes
   useEffect(() => {
     if (batchEditField === 'site') {
-      setBatchEditValue(customSites.length > 0 ? getSiteWording(customSites[0]) : "Quarry Bay Hub (Taikoo Place)");
+      setBatchEditValue(customSites.length > 0 ? getSiteWording(customSites[0]) : "Quarry Bay Office");
     } else if (batchEditField === 'workerType') {
       setBatchEditValue('Office');
     } else if (batchEditField === 'mode') {
@@ -1113,11 +1113,11 @@ export default function App() {
       let employeesLocal = employeesInDistrict;
 
       // Determine transport splits specifically to districts
-      let splits = { 'MTR': 0.60, 'Bus': 0.25, 'Minibus': 0.10, 'Private Car': 0.05 };
+      let splits = { 'MTR': 0.70, 'Bus': 0.25,'Private Car': 0.05 };
       if (["Tuen Mun Town & North", "Tuen Mun South / Gold Coast", "Yuen Long Town", "Tin Shui Wai", "Fanling / Sheung Shui"].includes(districtName)) {
-        splits = { 'MTR': 0.45, 'Bus': 0.40, 'Minibus': 0.10, 'Private Car': 0.05 };
+        splits = { 'MTR': 0.45, 'Bus': 0.50,'Private Car': 0.05 };
       } else if (["Central / Admiralty / Sheung Wan", "Wan Chai / Causeway Bay", "Tsim Sha Tsui / Jordan", "Mong Kok / Tai Kok Tsui"].includes(districtName)) {
-        splits = { 'MTR': 0.65, 'Bus': 0.15, 'Minibus': 0.10, 'Private Car': 0.10 };
+        splits = { 'MTR': 0.75, 'Bus': 0.15,'Private Car': 0.10 };
       }
 
       // Calculate walking ratios
@@ -1129,7 +1129,6 @@ export default function App() {
       const avgEmissionFactorKg = (
         (splits['MTR'] * (emissionFactors['MTR'] ?? 0)) +
         (splits['Bus'] * (emissionFactors['Bus'] ?? 0)) +
-        (splits['Minibus'] * (emissionFactors['Minibus'] ?? 0)) +
         (splits['Private Car'] * (emissionFactors['Private Car'] ?? 0))
       ) / 1000; // convert g to kg
 
@@ -1530,13 +1529,15 @@ export default function App() {
     };
   }, [getDistrictSamples, emissionFactors, workingDaysOffice, workingDaysFrontline, roundTripMultiplier, isSimulating12k, totalEmployees, customSites, employeeRoster.length, rosterCalculations]);
 
+
+
   // --- CSV Export Generation ---
   const handleExportCSV = (type: 'districts' | 'roster') => {
     let csvContent = "";
     if (type === 'districts') {
       csvContent = "District,Name (ZH),Employees Count,Average Commute Distance (km),Public Housing Split %,MTR Split %,Bus Split %,Minibus Split %,Private Car Split %,Monthly tCO2e,Annual tCO2e\n";
       districtCalculations.forEach(d => {
-        csvContent += `"${d.name}","${d.nameZH}",${d.employees},${d.avgDistance},${d.pubRatio * 100},${d.splits['MTR'] * 100},${d.splits['Bus'] * 100},${d.splits['Minibus'] * 100},${d.splits['Private Car'] * 100},${d.tCO2eMonth},${d.tCO2eYear}\n`;
+        csvContent += `"${d.name}","${d.nameZH}",${d.employees},${d.avgDistance},${d.pubRatio * 100},${d.splits['MTR'] * 100},${d.splits['Bus'] * 100},${d.splits['Private Car'] * 100},${d.tCO2eMonth},${d.tCO2eYear}\n`;
       });
     } else {
       csvContent = "Employee ID,Home District,Commute Mode,Assigned Work Site,Workforce Category,Avg Commute Distance (km),Monthly CO2e (kg),Annual CO2e (kg)\n";
@@ -2716,7 +2717,6 @@ export default function App() {
                                 data={[
                                   { name: 'MTR', value: districtCalculations.reduce((acc, d) => acc + (d.splits['MTR'] || 0) * d.employees, 0) },
                                   { name: 'Bus', value: districtCalculations.reduce((acc, d) => acc + (d.splits['Bus'] || 0) * d.employees, 0) },
-                                  { name: 'Minibus', value: districtCalculations.reduce((acc, d) => acc + (d.splits['Minibus'] || 0) * d.employees, 0) },
                                   { name: 'Private Car', value: districtCalculations.reduce((acc, d) => acc + (d.splits['Private Car'] || 0) * d.employees, 0) },
                                   { name: 'Walk', value: districtCalculations.reduce((acc, d) => acc + d.employeesWalking, 0) },
                                 ].filter(item => item.value > 0)}
