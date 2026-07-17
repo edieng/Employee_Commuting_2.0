@@ -234,8 +234,16 @@ export const DISTRICT_DATA: Record<string, DistrictConfig> = {
 // ==========================================
 
 export const OFFICE_PRESETS = [
-  { name: "Quarry Bay Office", lat: 22.2854, lng: 114.2128 },
-  { name: "Kwun Tong Office", lat: 22.3134, lng: 114.2238 }
+  { name: "Quarry Bay Office", 
+    lat: 22.2854, 
+    lng: 114.2128,
+    keywords: ["quarry bay", "qb", "taikoo", "headquarter", "hq", "鰂魚涌"]
+  },
+  { name: "Kwun Tong Office", 
+    lat: 22.3134, 
+    lng: 114.2238,
+    keywords: ["kwun tong", "kt", "觀塘"]
+  }
 ];
 
 // ==========================================
@@ -607,6 +615,32 @@ const getHKRoadFactor = (districtName: string) => {
   ];
   return ntDistricts.includes(districtName) ? 1.38 : 1.28;
 };
+
+const getDistrictModeSplits = (districtName: string): Record<string, number> => {
+  let splits = { 'MTR': 0.70, 'Bus': 0.25,'Private Car': 0.05 };
+  if ([
+    "Tuen Mun Town & North", "Tuen Mun South / Gold Coast", "Yuen Long Town",
+    "Tin Shui Wai", "Fanling / Sheung Shui"
+  ].includes(districtName)) {
+    splits = { 'MTR': 0.45, 'Bus': 0.50,'Private Car': 0.05 };
+  } else if ([
+    "Tai Po Town", "Sha Tin / Tai Wai", "Ma On Shan / Fo Tan",
+    "Tseung Kwan O", "Sai Kung Town"
+  ].includes(districtName)) {
+    splits = { 'MTR': 0.75, 'Bus': 0.15,'Private Car': 0.05 };
+  }
+  return splits;
+};
+
+const pickWeightedMode = (splits: Record<string, number>): string => {
+  const rand = Math.random();
+  let cumulative = 0;
+  for (const [mode, weight] of Object.entries(splits)) {
+    cumulative += weight;
+    if (rand <= cumulative) return mode;
+  }
+  return Object.keys(splits)[0]; // safety fallback
+}
 
 // ==========================================
 // DEFAULT TRANSIT MIXES (PROPORTIONS)
@@ -1121,7 +1155,7 @@ export default function App() {
       if (["Tuen Mun Town & North", "Tuen Mun South / Gold Coast", "Yuen Long Town", "Tin Shui Wai", "Fanling / Sheung Shui"].includes(districtName)) {
         splits = { 'MTR': 0.45, 'Bus': 0.50,'Private Car': 0.05 };
       } else if (["Central / Admiralty / Sheung Wan", "Wan Chai / Causeway Bay", "Tsim Sha Tsui / Jordan", "Mong Kok / Tai Kok Tsui"].includes(districtName)) {
-        splits = { 'MTR': 0.75, 'Bus': 0.15,'Private Car': 0.10 };
+        splits = { 'MTR': 0.75, 'Bus': 0.15,'Private Car': 0.05 };
       }
 
       // Calculate walking ratios
@@ -1661,6 +1695,7 @@ export default function App() {
     e.target.value = ""; // allow re-uploading the same filename later
   };
  
+ // --- CSV Import Parser for Employee Roster ---
 
   const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1756,11 +1791,21 @@ export default function App() {
         }
 
         // Align Mode
-        let mode: 'MTR' | 'Bus' | 'Private Car' | 'Walk' = 'MTR';
-        const modeLower = modeRaw.toLowerCase();
-        if (modeLower.includes('walk') || modeLower.includes('foot')) mode = 'Walk';
-        else if (modeLower.includes('car') || modeLower.includes('drive')) mode = 'Private Car';
-        else if (modeLower.includes('bus') || modeLower.includes('kmb')) mode = 'Bus';
+        let mode: 'MTR' | 'Bus' | 'Private Car' | 'Walk';
+        const modeLower = modeRaw.trim().toLowerCase();
+
+        if (modeLower.includes('walk') || modeLower.includes('foot')) {
+          mode = 'Walk';
+        } else if (modeLower.includes('car') || modeLower.includes('drive')) {
+          mode = 'Private Car';
+        } else if (modeLower.includes('bus') || modeLower.includes('kmb') || modeLower.includes('citybus')) {
+          mode = 'Bus';
+        } else {
+          //Blank cell OR unrecognitzed text - weighted random pick by district 
+          const splits = getDistrictModeSplits(matchedDistrict);
+          mode = pickWeightedMode(splits) as any;
+        }
+
 
         // Validate Site
         const trimmedRawSite = siteRaw.trim();
