@@ -8,6 +8,8 @@ import {
 
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, Cell, PieChart, Pie } from 'recharts';
 
+import * as XLSX from 'xlsx';
+
 interface DistrictConfig {
   name: string;
   nameZH: string;
@@ -16,7 +18,7 @@ interface DistrictConfig {
   radius: number; // geographical spread radius in km
   estatesPub: string[];
   estatesPri: string[];
-  employees: number; // Default 12,000 employee distribution
+  employees: number; // Added "?" so it is optional and not forced to be fixed
   pubRatio: number;  // Public vs Private housing split
 }
 
@@ -613,7 +615,7 @@ const getHKRoadFactor = (districtName: string) => {
 interface CommuteRosterItem {
   id: string;
   district: string;
-  mode: 'MTR' | 'Bus' | 'Minibus' | 'Private Car' | 'Walk';
+  mode: 'MTR' | 'Bus' | 'Private Car' | 'Walk';
   housingType: 'Public' | 'Private';
   site?: string;
   workerType?: 'Office' | 'Frontline';
@@ -648,6 +650,7 @@ const loadState = <T,>(key: string, defaultValue: T): T => {
 };
 
 export default function App() {
+
   // --- Reporting Month Config ---
   const MONTHS_WORKING_DAYS_OFFICE: Record<string, number> = useMemo(() => ({
     "January": 22,
@@ -721,7 +724,6 @@ export default function App() {
       'Private Car': 143.2,
       'MTR': 12.4,
       'Bus': 18.5,
-      'Minibus': 24.1,
       'Walk': 0.0
     })
   );
@@ -750,7 +752,7 @@ export default function App() {
   const [editingEmpId, setEditingEmpId] = useState<string | null>(null);
   const [editEmployeeData, setEditEmployeeData] = useState<{
     district: string;
-    mode: 'MTR' | 'Bus' | 'Minibus' | 'Private Car' | 'Walk';
+    mode: 'MTR' | 'Bus' | 'Private Car' | 'Walk';
     housingType: 'Public' | 'Private';
     site: string;
     workerType: 'Office' | 'Frontline';
@@ -767,6 +769,8 @@ export default function App() {
   const [uploadedRosterSamples, setUploadedRosterSamples] = useState<any[] | null>(null);
 
   // CSV Import Preview States
+  const [sitePreviewRows, setSitePreviewRows] = useState<any[]>([]);
+  const [isSitePreviewOpen, setIsSitePreviewOpen] = useState(false);
   const [csvPreviewRows, setCsvPreviewRows] = useState<any[]>([]);
   const [isCSVPreviewOpen, setIsCSVPreviewOpen] = useState(false);
   const [csvPreviewFilterOnlyInvalid, setCsvPreviewFilterOnlyInvalid] = useState(false);
@@ -1301,11 +1305,10 @@ export default function App() {
         // Assign realistic mode based on housing type & index
         const housingType = (i % 10 < conf.pubRatio * 10) ? 'Public' : 'Private';
         
-        let mode: 'MTR' | 'Bus' | 'Minibus' | 'Private Car' = 'MTR';
+        let mode: 'MTR' | 'Bus' | 'Private Car' = 'MTR';
         const rand = (i + idCounter) % 100;
         if (rand < 55) mode = 'MTR';
         else if (rand < 80) mode = 'Bus';
-        else if (rand < 92) mode = 'Minibus';
         else mode = 'Private Car';
 
         // Seed employees into custom sites
@@ -1499,17 +1502,16 @@ export default function App() {
       const employeesInDistrict = Math.round(totalEmployeesCount * districtWeight);
 
       // District transport splits
-      let splits = { 'MTR': 0.60, 'Bus': 0.25, 'Minibus': 0.10, 'Private Car': 0.05 };
+      let splits = { 'MTR': 0.70, 'Bus': 0.25, 'Private Car': 0.05 };
       if (["Tuen Mun Town & North", "Tuen Mun South / Gold Coast", "Yuen Long Town", "Tin Shui Wai", "Fanling / Sheung Shui"].includes(districtName)) {
-        splits = { 'MTR': 0.45, 'Bus': 0.40, 'Minibus': 0.10, 'Private Car': 0.05 };
+        splits = { 'MTR': 0.55, 'Bus': 0.40, 'Private Car': 0.05 };
       } else if (["Central / Admiralty / Sheung Wan", "Wan Chai / Causeway Bay", "Tsim Sha Tsui / Jordan", "Mong Kok / Tai Kok Tsui"].includes(districtName)) {
-        splits = { 'MTR': 0.65, 'Bus': 0.15, 'Minibus': 0.10, 'Private Car': 0.10 };
+        splits = { 'MTR': 0.75, 'Bus': 0.15, 'Private Car': 0.10 };
       }
 
       const avgEmissionFactorKg = (
         (splits['MTR'] * emissionFactors['MTR']) +
         (splits['Bus'] * emissionFactors['Bus']) +
-        (splits['Minibus'] * emissionFactors['Minibus']) +
         (splits['Private Car'] * emissionFactors['Private Car'])
       ) / 1000;
 
@@ -1535,7 +1537,7 @@ export default function App() {
   const handleExportCSV = (type: 'districts' | 'roster') => {
     let csvContent = "";
     if (type === 'districts') {
-      csvContent = "District,Name (ZH),Employees Count,Average Commute Distance (km),Public Housing Split %,MTR Split %,Bus Split %,Minibus Split %,Private Car Split %,Monthly tCO2e,Annual tCO2e\n";
+      csvContent = "District,Name (ZH),Employees Count,Average Commute Distance (km),Public Housing Split %,MTR Split %,Bus Split %,Private Car Split %,Monthly tCO2e,Annual tCO2e\n";
       districtCalculations.forEach(d => {
         csvContent += `"${d.name}","${d.nameZH}",${d.employees},${d.avgDistance},${d.pubRatio * 100},${d.splits['MTR'] * 100},${d.splits['Bus'] * 100},${d.splits['Private Car'] * 100},${d.tCO2eMonth},${d.tCO2eYear}\n`;
       });
@@ -1558,6 +1560,108 @@ export default function App() {
   };
 
   // --- CSV Import Parser ---
+  // Site file upload handler (XLSX or CSV) with flexible header matching and validation
+  const handleSiteFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = event.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+
+        // Convert sheet to array-of-arrays so we control header matching ourselves
+        // (same flexible-header philosophy as your employee CSV importer)
+        const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+        if (rows.length < 2) {
+          alert("The file appears to be empty or has no data rows.");
+          return;
+        }
+
+        const headers = (rows[0] as string[]).map(h => String(h).toLowerCase().trim());
+        const nameIdx   = headers.findIndex(h => h.includes('name') || h.includes('site'));
+        const distIdx   = headers.findIndex(h => h.includes('district'));
+        const latIdx    = headers.findIndex(h => h.includes('lat'));
+        const lngIdx    = headers.findIndex(h => h.includes('lng') || h.includes('long'));
+        const codeIdx   = headers.findIndex(h => h.includes('code'));
+
+        const previewRows: any[] = [];
+
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row || row.every(c => String(c).trim() === "")) continue; // skip blank rows
+
+          const siteName   = nameIdx  !== -1 ? String(row[nameIdx]).trim()  : "";
+          const districtRaw = distIdx !== -1 ? String(row[distIdx]).trim() : "";
+          const latRaw      = latIdx  !== -1 ? row[latIdx]  : "";
+          const lngRaw      = lngIdx  !== -1 ? row[lngIdx]  : "";
+          const siteCodeRaw = codeIdx !== -1 ? String(row[codeIdx]).trim() : "";
+
+          if (!siteName) continue; // name is required, skip unnamed rows
+
+          // Validate district — exact match against DISTRICT_DATA keys first
+          const foundExactDist = Object.keys(DISTRICT_DATA).find(
+            d => d.toLowerCase() === districtRaw.toLowerCase()
+          );
+          let matchedDistrict = foundExactDist || "";
+
+          // Fuzzy fallback — reuse the same keyword logic as your employee importer
+          if (!matchedDistrict && districtRaw) {
+            const rawLower = districtRaw.toLowerCase();
+            matchedDistrict = Object.keys(DISTRICT_DATA).find(
+              key => key.toLowerCase().includes(rawLower) || rawLower.includes(key.toLowerCase())
+            ) || "";
+          }
+          const isDistrictInvalid = !matchedDistrict;
+          if (!matchedDistrict) matchedDistrict = "Kwun Tong Town"; // safe fallback shown in preview
+
+          // Validate lat/lng
+          const latNum = parseFloat(String(latRaw));
+          const lngNum = parseFloat(String(lngRaw));
+          const isCoordInvalid = isNaN(latNum) || isNaN(lngNum);
+
+          // Duplicate check against sites already in the system
+          const isDuplicate = customSites.some(
+            s => s.name.toLowerCase() === siteName.toLowerCase()
+          );
+
+          previewRows.push({
+            rawName: siteName,
+            rawDistrict: districtRaw,
+            district: matchedDistrict,
+            lat: isCoordInvalid ? 0 : latNum,
+            lng: isCoordInvalid ? 0 : lngNum,
+            siteCode: siteCodeRaw,
+            isDistrictInvalid,
+            isCoordInvalid,
+            isDuplicate,
+          });
+        }
+
+        if (previewRows.length === 0) {
+          alert(
+            "Could not parse any site rows. Please check your column headers include: " +
+            "'Site Name', 'District', 'Lat', 'Lng' (Site Code is optional)."
+          );
+          return;
+        }
+
+        setSitePreviewRows(previewRows);
+        setIsSitePreviewOpen(true);
+      } catch (err) {
+        console.error("Error reading site file:", err);
+        alert("Could not read this file. Please make sure it's a valid .xlsx or .csv file.");
+      }
+    };
+
+    reader.readAsBinaryString(file);
+    e.target.value = ""; // allow re-uploading the same filename later
+  };
+ 
+
   const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1652,11 +1756,10 @@ export default function App() {
         }
 
         // Align Mode
-        let mode: 'MTR' | 'Bus' | 'Minibus' | 'Private Car' | 'Walk' = 'MTR';
+        let mode: 'MTR' | 'Bus' | 'Private Car' | 'Walk' = 'MTR';
         const modeLower = modeRaw.toLowerCase();
         if (modeLower.includes('walk') || modeLower.includes('foot')) mode = 'Walk';
         else if (modeLower.includes('car') || modeLower.includes('drive')) mode = 'Private Car';
-        else if (modeLower.includes('minibus') || modeLower.includes('lpg')) mode = 'Minibus';
         else if (modeLower.includes('bus') || modeLower.includes('kmb')) mode = 'Bus';
 
         // Validate Site
@@ -1792,6 +1895,41 @@ export default function App() {
     alert(`Successfully mapped all unrecognized work sites to "${batchFixSiteTarget}"!`);
   };
 
+  const handleConfirmSiteImport = () => {
+    const validRows = sitePreviewRows.filter(r => !r.isCoordInvalid && !r.isDuplicate);
+
+    if (validRows.length === 0) {
+      alert("No valid new sites to import — check for coordinate errors or duplicate names.");
+      return;
+    }
+
+    const newSites: CustomWorkSite[] = validRows.map((row, idx) => {
+      const nextNum = customSites.length + idx + 1;
+      const autoCode = `SITE-${String(nextNum).padStart(2, '0')}`;
+      return {
+        id: `SITE-${row.rawName.replace(/[^A-Za-z0-9]/g, '').toUpperCase() || 'NEW'}-${Date.now() % 100000}-${idx}`,
+        name: row.rawName,
+        district: row.district,
+        lat: row.lat,
+        lng: row.lng,
+        staffCount: 0, // staff count comes from the employee roster, not this upload
+        visible: true,
+        siteCode: row.siteCode || autoCode,
+      };
+    });
+
+    setCustomSites(prev => [...prev, ...newSites]);
+    setIsSitePreviewOpen(false);
+    setSitePreviewRows([]);
+
+    const skippedCount = sitePreviewRows.length - validRows.length;
+    let msg = `Successfully imported ${newSites.length} new work site(s)!`;
+    if (skippedCount > 0) {
+      msg += ` Skipped ${skippedCount} row(s) due to invalid coordinates or duplicate names.`;
+    }
+    alert(msg);
+  };
+  
   const handleConfirmCSVImport = () => {
     const newItems: CommuteRosterItem[] = [];
     const newlyDetectedSitesMap: Record<string, CustomWorkSite> = {};
@@ -2176,7 +2314,6 @@ export default function App() {
       'Private Car': 143.2,
       'MTR': 12.4,
       'Bus': 18.5,
-      'Minibus': 24.1,
       'Walk': 0.0
     });
     setWorkingDays(22);
@@ -2283,6 +2420,25 @@ export default function App() {
                     </div>
                   );
                 })}
+              </div>
+              {/* ── PART A: Bulk Upload button ────────────────────────────────────────── */}
+              <div className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200 flex flex-col gap-1.5">
+                <span className="text-[10px] font-bold text-emerald-800 flex items-center gap-1">
+                  <Upload className="w-3.5 h-3.5 text-emerald-600" /> Bulk Upload Sites (Excel/CSV)
+                </span>
+                <p className="text-[9px] text-emerald-700">
+                  Columns needed: Site Name, District, Lat, Lng, Site Code
+                </p>
+                <label className="w-full py-1.5 mt-0.5 bg-emerald-600 hover:bg-emerald-700 text-whitetext-[10px] font-bold rounded flex items-center justify-center gap-1 cursor-pointer transition-colors">
+                  <Upload className="w-3.5 h-3.5" />
+                  Choose File to Upload
+                  <input
+                    type="file"
+                    accept=".csv, .xlsx, .xls"
+                    onChange={handleSiteFileUpload}
+                    className="hidden"
+                  />
+                </label>
               </div>
 
               {/* Plus Function: Add Client Site */}
@@ -2731,7 +2887,6 @@ export default function App() {
                                 {[
                                   { name: 'MTR', fill: '#3b82f6' },
                                   { name: 'Bus', fill: '#f59e0b' },
-                                  { name: 'Minibus', fill: '#a855f7' },
                                   { name: 'Private Car', fill: '#ef4444' },
                                   { name: 'Walk', fill: '#10b981' }
                                 ].map((entry, index) => (
@@ -3003,7 +3158,6 @@ export default function App() {
                         <option value="All">All Modes</option>
                         <option value="MTR">MTR</option>
                         <option value="Bus">Bus</option>
-                        <option value="Minibus">Minibus</option>
                         <option value="Private Car">Private Car</option>
                         <option value="Walk">Walk</option>
                       </select>
@@ -3085,7 +3239,6 @@ export default function App() {
                         >
                           <option value="MTR">MTR (Train)</option>
                           <option value="Bus">Bus</option>
-                          <option value="Minibus">Minibus / LPG</option>
                           <option value="Private Car">Private Car (Petrol)</option>
                         </select>
                       </div>
@@ -3185,7 +3338,6 @@ export default function App() {
                                 <>
                                   <option value="MTR">MTR</option>
                                   <option value="Bus">Bus</option>
-                                  <option value="Minibus">Minibus</option>
                                   <option value="Private Car">Private Car</option>
                                   <option value="Walk">Walk</option>
                                 </>
@@ -3313,7 +3465,6 @@ export default function App() {
                                       >
                                         <option value="MTR">MTR</option>
                                         <option value="Bus">Bus</option>
-                                        <option value="Minibus">Minibus</option>
                                         <option value="Private Car">Private Car</option>
                                         <option value="Walk">Walk</option>
                                       </select>
@@ -3705,7 +3856,6 @@ NT_ROAD_FACTOR = 1.38     # accounts for New Territories highway stretches
 EMISSION_FACTORS = {
     'MTR': ${emissionFactors['MTR']},
     'Bus': ${emissionFactors['Bus']},
-    'Minibus': ${emissionFactors['Minibus']},
     'Private Car': ${emissionFactors['Private Car']}
 }
 
@@ -3857,6 +4007,98 @@ def process_employee_commuting(employee_df, working_days=22, round_trip=True):
           <span>Version 2.4.0-STABLE</span>
         </div>
       </footer>
+      
+      {/* ── PART B: Preview modal ─────────────────────────────────────────────── */}
+      {isSitePreviewOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col">
+            <div className="p-4 border-b border-slate-200 flex justify-between items-center">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-emerald-600" />
+                Review Site Upload — {sitePreviewRows.length} row(s) found
+              </h3>
+              <button
+                onClick={() => { setIsSitePreviewOpen(false); setSitePreviewRows([]); }}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {/* Validation summary */}
+            <div className="p-3 bg-slate-50 border-b border-slate-200 flex gap-4 text-[11px]">
+              <span>Total: <strong>{sitePreviewRows.length}</strong></span>
+              <span className="text-rose-600">
+                Invalid coords: <strong>{sitePreviewRows.filter(r => r.isCoordInvalid).length}</strong>
+              </span>
+              <span className="text-amber-600">
+                District not matched: <strong>{sitePreviewRows.filter(r => r.isDistrictInvalid).length}</strong>
+              </span>
+              <span className="text-slate-500">
+                Duplicates (skipped): <strong>{sitePreviewRows.filter(r => r.isDuplicate).length}</strong>
+              </span>
+            </div>
+            {/* Row table */}
+            <div className="overflow-y-auto flex-1 p-3">
+              <table className="w-full text-[10px]">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-500 text-left">
+                    <th className="pb-1.5">Site Name</th>
+                    <th className="pb-1.5">District</th>
+                    <th className="pb-1.5">Lat</th>
+                    <th className="pb-1.5">Lng</th>
+                    <th className="pb-1.5">Code</th>
+                    <th className="pb-1.5">Status</th>
+                  </tr>
+                </thead>
+              <tbody>
+                {sitePreviewRows.map((row, idx) => (
+                  <tr key={idx} className="border-b border-slate-100">
+                    <td className="py-1 font-medium">{row.rawName}</td>
+                    <td className={`py-1 ${row.isDistrictInvalid ? 'text-amber-600' : ''}`}>
+                      {row.district}
+                      {row.isDistrictInvalid && <span className="text-[8px] block">defaulted — check spelling</span>}
+                    </td>
+                    <td className={`py-1 font-mono ${row.isCoordInvalid ? 'text-rose-600' : ''}`}>
+                      {row.isCoordInvalid ? '—' : row.lat.toFixed(4)}
+                    </td>
+                    <td className={`py-1 font-mono ${row.isCoordInvalid ? 'text-rose-600' : ''}`}>
+                      {row.isCoordInvalid ? '—' : row.lng.toFixed(4)}
+                    </td>
+                    <td className="py-1 font-mono">{row.siteCode || '(auto)'}</td>
+                    <td className="py-1">
+                      {row.isDuplicate ? (
+                        <span className="text-slate-400">Skip (duplicate)</span>
+                      ) : row.isCoordInvalid ? (
+                        <span className="text-rose-600 font-semibold">Skip (bad coords)</span>
+                      ) : (
+                        <span className="text-emerald-600 font-semibold">Will import</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              </table>
+            </div>
+            {/* Footer actions */}
+            <div className="p-3 border-t border-slate-200 flex justify-end gap-2">
+              <button
+              onClick={() => { setIsSitePreviewOpen(false); setSitePreviewRows([]); }}
+              className="px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 rounded"
+              >
+                Cancel
+              </button>
+              <button
+              onClick={handleConfirmSiteImport}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px]
+                font-bold rounded flex items-center gap-1.5"
+              >
+                <Check className="w-3.5 h-3.5" />
+                Confirm Import {sitePreviewRows.filter(r => !r.isCoordInvalid && !r.isDuplicate).length} Site(s)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CSV IMPORT PREVIEW & CORRECTION MODAL */}
       {isCSVPreviewOpen && (
@@ -4085,7 +4327,6 @@ def process_employee_commuting(employee_df, working_days=22, round_trip=True):
                                 >
                                   <option value="MTR">MTR</option>
                                   <option value="Bus">Bus</option>
-                                  <option value="Minibus">Minibus</option>
                                   <option value="Private Car">Private Car</option>
                                   <option value="Walk">Walk</option>
                                 </select>
