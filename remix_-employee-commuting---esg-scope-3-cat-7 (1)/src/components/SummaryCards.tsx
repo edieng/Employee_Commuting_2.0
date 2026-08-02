@@ -5,112 +5,126 @@ import { TotalSummary } from '../types';
 interface SummaryCardsProps {
   summary: TotalSummary;
   activeSitesCount: number;
+  showAnnualTotal?: boolean;
+  setShowAnnualTotal?: React.Dispatch<React.SetStateAction<boolean>>;
+  onOpenSiteManagement?: () => void;
 }
 
-export const SummaryCards: React.FC<SummaryCardsProps> = ({ summary, activeSitesCount }) => {
-  const selectedMonthsCount = summary.selectedMonthNames.length;
-  const monthSubtitle = selectedMonthsCount === 12
-    ? "Full Year (12 Months)"
-    : selectedMonthsCount === 1
-    ? summary.selectedMonthNames[0]
-    : `${selectedMonthsCount} Months Selected`;
+export const SummaryCards: React.FC<SummaryCardsProps> = ({ 
+  summary, 
+  activeSitesCount,
+  showAnnualTotal: externalShowAnnual,
+  setShowAnnualTotal: externalSetShowAnnual,
+  onOpenSiteManagement
+}) => {
+  const [internalShowAnnual, setInternalShowAnnual] = React.useState(false);
+
+  const showAnnual = externalShowAnnual !== undefined ? externalShowAnnual : internalShowAnnual;
+  const toggleAnnual = () => {
+    if (externalSetShowAnnual) {
+      externalSetShowAnnual(prev => !prev);
+    } else {
+      setInternalShowAnnual(prev => !prev);
+    }
+  };
+
+  const isFullYear = summary.selectedMonthNames?.length === 12;
+  const cardTitle = (showAnnual || isFullYear) ? 'Annual Total Emissions' : 'Selected Period Emissions';
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       {/* 1. Total Employees */}
-      <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-colors">
-        <div className="flex items-center justify-between text-slate-500 mb-2">
-          <span className="text-xs font-semibold uppercase tracking-wider">Total Employees</span>
-          <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-            <Users className="w-4 h-4" />
-          </div>
-        </div>
+      <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
         <div>
-          <div className="text-2xl font-bold text-slate-900 font-mono">
-            {summary.totalEmployees.toLocaleString()}
+          <div className="flex items-center justify-between text-slate-500 h-6">
+            <span className="text-xs font-normal text-slate-500">Total Employees</span>
+            <div className="h-6" />
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Across 18 Hong Kong Districts
-          </p>
+          <div className="mt-3">
+            <div className="text-3xl font-bold text-slate-900 font-sans tracking-tight">
+              {summary.totalEmployees.toLocaleString()}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* 2. Selected Month(s) Carbon Emission */}
-      <div className="bg-white rounded-xl p-4 border border-emerald-200 bg-emerald-50/20 shadow-xs flex flex-col justify-between hover:border-emerald-300 transition-colors">
-        <div className="flex items-center justify-between text-slate-500 mb-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800">
-            Selected Month Emissions
-          </span>
-          <div className="p-2 bg-emerald-100 text-emerald-700 rounded-lg">
-            <Calendar className="w-4 h-4" />
-          </div>
-        </div>
+      {/* 2. Carbon Emissions */}
+      <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
         <div>
-          <div className="text-2xl font-bold text-emerald-700 font-mono">
-            {summary.selectedMonthsCO2Tons.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            <span className="text-xs font-sans font-normal text-slate-500 ml-1">tCO₂e</span>
+          <div className="flex items-center justify-between text-slate-500 h-6">
+            <span className="text-xs font-normal text-slate-500">
+              {cardTitle}
+            </span>
+            <div className="flex items-center gap-1.5 shrink-0 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200/80">
+              <span className="text-[10px] font-semibold text-slate-600 uppercase">Annual</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showAnnual}
+                onClick={toggleAnnual}
+                className={`relative inline-flex h-3.5 w-6 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                  showAnnual ? 'bg-slate-900' : 'bg-slate-300'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                    showAnnual ? 'translate-x-2.5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
-          <p className="text-[11px] text-emerald-600 font-medium mt-1 truncate" title={summary.selectedMonthNames.join(', ')}>
-            {monthSubtitle}
-          </p>
+          <div className="mt-3">
+            <div className="text-3xl font-bold text-slate-900 font-sans tracking-tight flex items-baseline gap-1.5">
+              {(showAnnual ? summary.totalAnnualCO2Tons : summary.selectedMonthsCO2Tons).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <span className="text-xs font-normal text-slate-400">tCO₂e</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* 3. 12-Month Annual Carbon Emission (FIXED METRICS) */}
-      <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-colors">
-        <div className="flex items-center justify-between text-slate-500 mb-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-            Annual Total Emission
-          </span>
-          <div className="p-2 bg-teal-50 text-teal-600 rounded-lg">
-            <Leaf className="w-4 h-4" />
-          </div>
-        </div>
+      {/* 3. Average Commute Distance */}
+      <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
         <div>
-          <div className="text-2xl font-bold text-slate-900 font-mono">
-            {summary.totalAnnualCO2Tons.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            <span className="text-xs font-sans font-normal text-slate-500 ml-1">tCO₂e</span>
+          <div className="flex items-center justify-between text-slate-500 h-6">
+            <span className="text-xs font-normal text-slate-500">Avg Commute Distance</span>
+            <div className="h-6" />
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Sum of 12 Months (Jan - Dec)
-          </p>
+          <div className="mt-3">
+            <div className="text-3xl font-bold text-slate-900 font-sans tracking-tight flex items-baseline gap-1.5">
+              {summary.averageDistanceKm}
+              <span className="text-xs font-normal text-slate-400">km / trip</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* 4. Average Commute Distance */}
-      <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-colors">
-        <div className="flex items-center justify-between text-slate-500 mb-2">
-          <span className="text-xs font-semibold uppercase tracking-wider">Avg Commute Distance</span>
-          <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
-            <Navigation className="w-4 h-4" />
-          </div>
-        </div>
+      {/* 4. Active Work Sites */}
+      <div 
+        onClick={onOpenSiteManagement}
+        role={onOpenSiteManagement ? "button" : undefined}
+        tabIndex={onOpenSiteManagement ? 0 : undefined}
+        className={`bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between transition-all ${
+          onOpenSiteManagement ? 'cursor-pointer hover:border-slate-300 hover:shadow-sm group' : 'hover:border-slate-300'
+        }`}
+      >
         <div>
-          <div className="text-2xl font-bold text-slate-900 font-mono">
-            {summary.averageDistanceKm}
-            <span className="text-xs font-sans font-normal text-slate-500 ml-1">km / trip</span>
+          <div className="flex items-center justify-between text-slate-500 h-6">
+            <span className="text-xs font-normal text-slate-500">Active Work Sites</span>
+            {onOpenSiteManagement ? (
+              <span className="text-[11px] font-semibold text-slate-700 bg-slate-50 border border-slate-200/80 px-2 py-0.5 rounded-full flex items-center gap-1 group-hover:bg-slate-100 transition-colors">
+                <Building2 className="w-3 h-3 text-slate-500" />
+                Manage →
+              </span>
+            ) : (
+              <div className="h-6" />
+            )}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            {summary.walkingEmployeesCount} employees walk to work
-          </p>
-        </div>
-      </div>
-
-      {/* 5. Active Work Sites */}
-      <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-colors">
-        <div className="flex items-center justify-between text-slate-500 mb-2">
-          <span className="text-xs font-semibold uppercase tracking-wider">Active Work Sites</span>
-          <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
-            <Building2 className="w-4 h-4" />
+          <div className="mt-3">
+            <div className="text-3xl font-bold text-slate-900 font-sans tracking-tight">
+              {activeSitesCount}
+            </div>
           </div>
-        </div>
-        <div>
-          <div className="text-2xl font-bold text-slate-900 font-mono">
-            {activeSitesCount}
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Configured Workplaces
-          </p>
         </div>
       </div>
     </div>

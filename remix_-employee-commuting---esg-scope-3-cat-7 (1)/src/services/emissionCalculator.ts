@@ -86,8 +86,11 @@ export function calculateRosterItemEmissions(
   const rawDist = haversineDistance(originLat, originLng, targetSite.lat, targetSite.lng);
   const adjustedDist = Number((rawDist * getHKRoadFactor(rawDist)).toFixed(2));
 
+  // Determine effective mode: If distance is within 1.2 km, assume Walk
+  const effectiveMode: 'MTR' | 'Bus' | 'Private Car' | 'Walk' = adjustedDist <= 1.2 ? 'Walk' : (item.mode || 'MTR');
+
   // Determine factor & worker type
-  const factor = emissionFactors[item.mode] ?? (item.mode === 'Private Car' ? 143.2 : item.mode === 'MTR' ? 12.4 : item.mode === 'Bus' ? 18.5 : 0.0);
+  const factor = emissionFactors[effectiveMode] ?? (effectiveMode === 'Private Car' ? 143.2 : effectiveMode === 'MTR' ? 12.4 : effectiveMode === 'Bus' ? 18.5 : 0.0);
   const workerType = item.workerType || 'Office';
   const daysMap = workerType === 'Frontline' ? workingDaysFrontlineMap : workingDaysOfficeMap;
 
@@ -103,6 +106,7 @@ export function calculateRosterItemEmissions(
 
   return {
     ...item,
+    mode: effectiveMode,
     distance: adjustedDist,
     dailyCO2Kg,
     monthlyCO2Kg,

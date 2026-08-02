@@ -75,4 +75,4 @@ export interface TotalSummary {
   selectedMonthNames: string[];
 }
 
-export type ActiveTab = 'dashboard' | 'sampler' | 'roster' | 'geocoder';
+export type ActiveTab = 'dashboard' | 'sampler' | 'roster';

@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Calendar, Check, ChevronDown, CheckSquare, Square, RefreshCw } from 'lucide-react';
-import { MONTHS_LIST } from '../utils/constants';
+import { Calendar, ChevronDown, RefreshCw } from 'lucide-react';
+import { MONTHS_LIST, MONTH_ABBRS, formatSelectedMonths } from '../utils/constants';
 
 interface MonthMultiSelectProps {
   selectedMonths: string[];
   onChangeSelectedMonths: (months: string[]) => void;
   workingDaysOfficeMap: Record<string, number>;
+  workingDaysFrontlineMap?: Record<string, number>;
   onOpenWorkingDaysModal?: () => void;
 }
 
@@ -13,6 +14,7 @@ export const MonthMultiSelect: React.FC<MonthMultiSelectProps> = ({
   selectedMonths,
   onChangeSelectedMonths,
   workingDaysOfficeMap,
+  workingDaysFrontlineMap = {},
   onOpenWorkingDaysModal
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -42,15 +44,17 @@ export const MonthMultiSelect: React.FC<MonthMultiSelectProps> = ({
   const clearAll = () => onChangeSelectedMonths([MONTHS_LIST[0]]); // default Jan
   const selectPreset = (months: string[]) => onChangeSelectedMonths(months);
 
-  // Calculate total working days for selected months
-  const totalDays = selectedMonths.reduce((acc, m) => acc + (workingDaysOfficeMap[m] || 21), 0);
+  // Calculate total working days for selected months (Office and Frontline)
+  const totalOfficeDays = selectedMonths.reduce((acc, m) => acc + (workingDaysOfficeMap[m] || 21), 0);
+  const totalFrontlineDays = selectedMonths.reduce((acc, m) => acc + (workingDaysFrontlineMap[m] || 25), 0);
 
-  // Display label
-  const labelText = selectedMonths.length === 12 
-    ? "All 12 Months (Full Year)"
-    : selectedMonths.length === 1
-    ? selectedMonths[0]
-    : `${selectedMonths.length} Months Selected (${selectedMonths.slice(0, 2).join(', ')}${selectedMonths.length > 2 ? '...' : ''})`;
+  // Formatted short label
+  const labelText = formatSelectedMonths(selectedMonths);
+
+  const isQuarterSelected = (quarterMonths: string[]) => {
+    return quarterMonths.length === selectedMonths.length && 
+      quarterMonths.every(m => selectedMonths.includes(m));
+  };
 
   return (
     <div className="relative inline-block text-left" ref={dropdownRef}>
@@ -63,13 +67,18 @@ export const MonthMultiSelect: React.FC<MonthMultiSelectProps> = ({
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="inline-flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-slate-300 rounded-lg shadow-xs text-xs font-medium text-slate-800 hover:bg-slate-50 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition-colors min-w-[210px]"
+          className="inline-flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-slate-300 rounded-lg shadow-xs text-xs font-medium text-slate-800 hover:bg-slate-50 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition-colors"
         >
-          <span className="truncate font-semibold text-emerald-900">{labelText}</span>
-          <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-mono font-bold shrink-0">
-            {totalDays} days
-          </span>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+          <span className="truncate font-bold text-emerald-900">{labelText}</span>
+          <div className="flex items-center gap-1 shrink-0 font-mono text-[10px]">
+            <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md font-bold" title="Office Working Days">
+              Office: {totalOfficeDays}d
+            </span>
+            <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-md font-bold" title="Frontline Working Days">
+              Frontline: {totalFrontlineDays}d
+            </span>
+          </div>
+          <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-0.5" />
         </button>
 
         {onOpenWorkingDaysModal && (
@@ -77,17 +86,20 @@ export const MonthMultiSelect: React.FC<MonthMultiSelectProps> = ({
             type="button"
             onClick={onOpenWorkingDaysModal}
             title="Configure working days per month"
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+            className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Working Days Settings</span>
           </button>
         )}
       </div>
 
       {isOpen && (
-        <div className="absolute right-0 mt-1 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-3 animate-in fade-in zoom-in-95 duration-100">
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-            <span className="text-xs font-bold text-slate-700">Select Months</span>
+        <div className="absolute right-0 mt-1 w-[360px] bg-white rounded-xl shadow-xl border border-slate-200 z-50 p-4 animate-in fade-in zoom-in-95 duration-100">
+          
+          {/* Section 1 Header */}
+          <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-100">
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Select Months</span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -96,7 +108,6 @@ export const MonthMultiSelect: React.FC<MonthMultiSelectProps> = ({
               >
                 Select All
               </button>
-
               <button
                 type="button"
                 onClick={clearAll}
@@ -107,81 +118,75 @@ export const MonthMultiSelect: React.FC<MonthMultiSelectProps> = ({
             </div>
           </div>
 
-          {/* Quick Presets */}
-          <div className="grid grid-cols-4 gap-1 mb-2.5">
-            <button
-              type="button"
-              onClick={() => selectPreset(["January", "February", "March"])}
-              className="px-1.5 py-1 text-[10px] font-medium bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-md text-slate-600 transition-colors"
-            >
-              Q1
-            </button>
-            <button
-              type="button"
-              onClick={() => selectPreset(["April", "May", "June"])}
-              className="px-1.5 py-1 text-[10px] font-medium bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-md text-slate-600 transition-colors"
-            >
-              Q2
-            </button>
-            <button
-              type="button"
-              onClick={() => selectPreset(["July", "August", "September"])}
-              className="px-1.5 py-1 text-[10px] font-medium bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-md text-slate-600 transition-colors"
-            >
-              Q3
-            </button>
-            <button
-              type="button"
-              onClick={() => selectPreset(["October", "November", "December"])}
-              className="px-1.5 py-1 text-[10px] font-medium bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-md text-slate-600 transition-colors"
-            >
-              Q4
-            </button>
-          </div>
-
-          {/* Months Checkbox Grid */}
-          <div className="grid grid-cols-2 gap-1 max-h-56 overflow-y-auto">
+          {/* Section 1: Select Months (2 rows of 6 months) */}
+          <div className="grid grid-cols-6 gap-1.5 mb-4">
             {MONTHS_LIST.map((m) => {
               const isSelected = selectedMonths.includes(m);
-              const days = workingDaysOfficeMap[m] || 21;
+              const abbr = MONTH_ABBRS[m] || m.slice(0, 3);
 
               return (
                 <button
                   key={m}
                   type="button"
                   onClick={() => toggleMonth(m)}
-                  className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+                  title={m}
+                  className={`py-2 px-1 text-xs font-bold rounded-lg transition-all text-center ${
                     isSelected 
-                      ? 'bg-emerald-50 text-emerald-900 font-semibold border border-emerald-200' 
-                      : 'hover:bg-slate-50 text-slate-600 border border-transparent'
+                      ? 'bg-emerald-600 text-white shadow-xs' 
+                      : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200/60'
                   }`}
                 >
-                  <div className="flex items-center gap-1.5 truncate">
-                    {isSelected ? (
-                      <CheckSquare className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    ) : (
-                      <Square className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                    )}
-                    <span className="truncate">{m}</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
-                    {days}d
-                  </span>
+                  {abbr}
                 </button>
               );
             })}
           </div>
 
-          <div className="mt-3 pt-2 border-t border-slate-100 flex justify-between items-center text-[11px] text-slate-500">
-            <span>Total: <strong className="text-slate-800">{selectedMonths.length}</strong> months</span>
+          {/* Section 2: Select Quarter */}
+          <div className="pt-3 border-t border-slate-100">
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-2">
+              Select Quarter
+            </span>
+            <div className="grid grid-cols-4 gap-1.5">
+              {[
+                { label: 'Q1', months: ["January", "February", "March"] },
+                { label: 'Q2', months: ["April", "May", "June"] },
+                { label: 'Q3', months: ["July", "August", "September"] },
+                { label: 'Q4', months: ["October", "November", "December"] },
+              ].map((q) => {
+                const active = isQuarterSelected(q.months);
+                return (
+                  <button
+                    key={q.label}
+                    type="button"
+                    onClick={() => selectPreset(q.months)}
+                    className={`py-1.5 px-2 text-xs font-bold rounded-lg transition-all text-center ${
+                      active
+                        ? 'bg-emerald-700 text-white shadow-xs'
+                        : 'bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700'
+                    }`}
+                  >
+                    {q.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="mt-4 pt-2.5 border-t border-slate-100 flex justify-between items-center text-[11px] text-slate-500">
+            <span>
+              Period: <strong className="text-slate-900 font-bold">{labelText}</strong> ({selectedMonths.length} mo)
+            </span>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="px-2.5 py-1 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition-colors text-xs"
+              className="px-3 py-1 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition-colors text-xs"
             >
-              Apply Filter
+              Apply
             </button>
           </div>
+
         </div>
       )}
     </div>

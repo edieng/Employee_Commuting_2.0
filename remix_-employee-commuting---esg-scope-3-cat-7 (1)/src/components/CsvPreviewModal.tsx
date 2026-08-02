@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Check, Users, FileSpreadsheet } from 'lucide-react';
 import { CommuteRosterItem } from '../types';
+import { getAllocatedTransportMode } from '../utils/constants';
 
 interface CsvPreviewModalProps {
   isOpen: boolean;
@@ -33,12 +34,21 @@ export const CsvPreviewModal: React.FC<CsvPreviewModalProps> = ({
 
   const parsedRoster: CommuteRosterItem[] = rawRosterData.map((row, idx) => {
     const district = String(row[districtCol] || 'Tsuen Wan Town').trim();
-    const modeRaw = String(row[modeCol] || 'MTR').trim().toLowerCase();
+    const modeRaw = String(row[modeCol] || '').trim().toLowerCase();
     
-    let mode: 'MTR' | 'Bus' | 'Private Car' | 'Walk' = 'MTR';
-    if (modeRaw.includes('bus') || modeRaw.includes('minibus')) mode = 'Bus';
-    else if (modeRaw.includes('car') || modeRaw.includes('drive') || modeRaw.includes('private')) mode = 'Private Car';
-    else if (modeRaw.includes('walk') || modeRaw.includes('foot')) mode = 'Walk';
+    let mode: 'MTR' | 'Bus' | 'Private Car' | 'Walk';
+    if (modeRaw.includes('bus') || modeRaw.includes('minibus')) {
+      mode = 'Bus';
+    } else if (modeRaw.includes('car') || modeRaw.includes('drive') || modeRaw.includes('private')) {
+      mode = 'Private Car';
+    } else if (modeRaw.includes('walk') || modeRaw.includes('foot')) {
+      mode = 'Walk';
+    } else if (modeRaw.includes('mtr') || modeRaw.includes('train') || modeRaw.includes('subway')) {
+      mode = 'MTR';
+    } else {
+      // Auto-assign transport mode according to HK region ratio & walk rule (distance <= 1.2km)
+      mode = getAllocatedTransportMode(5.0, district);
+    }
 
     const site = String(row[siteCol] || 'SITE-QB').trim();
     const workerTypeRaw = String(row[workerTypeCol] || 'Office').trim().toLowerCase();
