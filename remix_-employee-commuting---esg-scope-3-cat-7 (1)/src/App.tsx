@@ -34,7 +34,8 @@ import {
   Calendar,
   Sparkles,
   LayoutDashboard,
-  ChevronDown
+  ChevronDown,
+  Route
 } from 'lucide-react';
 
 // Route Map Icon matching custom design (two pins with dashed connecting route)
@@ -233,7 +234,7 @@ export function App() {
     {
       id: 'sampler',
       label: 'Area-to-Site Commute Reference',
-      icon: <RouteMapIcon className="w-5 h-5 shrink-0 text-slate-700" />,
+      icon: <Route className="w-5 h-5 shrink-0 text-slate-700"/>,
       onClick: () => setActiveTab('sampler')
     }
   ];

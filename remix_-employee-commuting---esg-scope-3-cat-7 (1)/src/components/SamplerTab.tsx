@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { DistrictCalculation, CustomWorkSite } from '../types';
 import { DISTRICT_DATA, renderAreaSelectOptions } from '../utils/constants';
 import { DistrictToSiteReview } from './DistrictToSiteReview';
+import { Route } from 'lucide-react';
 
 // Route Map Icon matching custom design (two pins with dashed connecting route)
 const RouteMapIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -35,7 +36,7 @@ export const SamplerTab: React.FC<SamplerTabProps> = ({ districtCalcs, customSit
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <RouteMapIcon className="w-5 h-5 text-slate-700 shrink-0" />
+            <Route className="w-5 h-5 text-slate-700 shrink-0" />
             Area-to-Site Commute Reference
           </h2>
         </div>
