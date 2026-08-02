@@ -1,14 +1,100 @@
-export interface DistrictConfig {
-  name: string;
-  nameZH: string;
-  lat: number;
-  lng: number;
-  radius: number; // geographical spread radius in km
-  estatesPub: string[];
-  estatesPri: string[];
-  employees: number; // Default 12,000 employee distribution
-  pubRatio: number;  // Public vs Private housing split
+import { DistrictConfig, GeodataItem, CustomWorkSite } from '../types';
+
+export const MONTHS_LIST = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
+export const DEFAULT_WORKING_DAYS_OFFICE: Record<string, number> = {
+  "January": 22,
+  "February": 18,
+  "March": 21,
+  "April": 19,
+  "May": 21,
+  "June": 21,
+  "July": 22,
+  "August": 22,
+  "September": 21,
+  "October": 21,
+  "November": 21,
+  "December": 21
+};
+
+export const DEFAULT_WORKING_DAYS_FRONTLINE: Record<string, number> = {
+  "January": 26,
+  "February": 22,
+  "March": 25,
+  "April": 23,
+  "May": 25,
+  "June": 25,
+  "July": 26,
+  "August": 26,
+  "September": 25,
+  "October": 25,
+  "November": 25,
+  "December": 25
+};
+
+export const DEFAULT_EMISSION_FACTORS: Record<string, number> = {
+  'Private Car': 143.2,
+  'MTR': 12.4,
+  'Bus': 18.5,
+  'Walk': 0.0
+};
+
+export const DEFAULT_CUSTOM_SITES: CustomWorkSite[] = [
+  { id: "SITE-QB", name: "Quarry Bay Office", district: "Quarry Bay / Taikoo", lat: 22.2854, lng: 114.2128, staffCount: 200, visible: true, siteCode: "SITE-01" },
+  { id: "SITE-KT", name: "Kwun Tong Office", district: "Kwun Tong Town", lat: 22.3134, lng: 114.2238, staffCount: 100, visible: true, siteCode: "SITE-02" },
+  { id: "SITE-CKC", name: "Cheung Kong Centre", district: "Central / Admiralty / Sheung Wan", lat: 22.2799, lng: 114.1603, staffCount: 100, visible: true, siteCode: "SITE-03" },
+  { id: "SITE-AH", name: "HKL - Alexandra House", district: "Central / Admiralty / Sheung Wan", lat: 22.2817, lng: 114.1586, staffCount: 100, visible: true, siteCode: "SITE-04" },
+  { id: "SITE-LM", name: "HKL - Landmark", district: "Central / Admiralty / Sheung Wan", lat: 22.2814, lng: 114.1584, staffCount: 100, visible: true, siteCode: "SITE-05" },
+  { id: "SITE-ES", name: "HKL - Exchange Square", district: "Central / Admiralty / Sheung Wan", lat: 22.2840, lng: 114.1581, staffCount: 100, visible: true, siteCode: "SITE-06" },
+  { id: "SITE-GEC", name: "Wharf - Great Eagle Centre", district: "Wan Chai / Causeway Bay", lat: 22.2804, lng: 114.1751, staffCount: 100, visible: true, siteCode: "SITE-07" },
+  { id: "SITE-LP", name: "Wharf - Langham Place", district: "Mong Kok / Tai Kok Tsui", lat: 22.3191, lng: 114.1685, staffCount: 100, visible: true, siteCode: "SITE-08" },
+  { id: "SITE-TGR", name: "Wharf - Three Garden Road", district: "Central / Admiralty / Sheung Wan", lat: 22.2789, lng: 114.1611, staffCount: 100, visible: true, siteCode: "SITE-09" },
+  { id: "SITE-UCH", name: "United Christian Hospital", district: "Kwun Tong Town", lat: 22.3223, lng: 114.2281, staffCount: 100, visible: true, siteCode: "SITE-10" },
+  { id: "SITE-CUMC", name: "Chinese University Medical Centre (CUMC)", district: "Sha Tin / Tai Wai", lat: 22.4143, lng: 114.2109, staffCount: 100, visible: true, siteCode: "SITE-11" },
+  { id: "SITE-TKOH", name: "Tseung Kwan O Hospital", district: "Tseung Kwan O", lat: 22.3168, lng: 114.2676, staffCount: 100, visible: true, siteCode: "SITE-12" },
+  { id: "SITE-YCH", name: "Yan Chai Hospital", district: "Lai Chi Kok / Mei Foo", lat: 22.3372, lng: 114.1190, staffCount: 100, visible: true, siteCode: "SITE-13" },
+  { id: "SITE-PMH", name: "Princess Margaret Hospital", district: "Kwai Chung / Kwai Fong", lat: 22.3421, lng: 114.1351, staffCount: 100, visible: true, siteCode: "SITE-14" },
+  { id: "SITE-PAM1", name: "PAM 1", district: "Tuen Mun Town & North", lat: 22.399, lng: 113.975, staffCount: 100, visible: true, siteCode: "SITE-15" },
+  { id: "SITE-PAM2", name: "PAM 2", district: "Tuen Mun Town & North", lat: 22.398, lng: 113.976, staffCount: 100, visible: true, siteCode: "SITE-16" },
+  { id: "SITE-PAM3", name: "PAM 3", district: "Tuen Mun Town & North", lat: 22.397, lng: 113.977, staffCount: 100, visible: true, siteCode: "SITE-17" }
+];
+
+export function getHighestSiteCodeNumber(sites: CustomWorkSite[]): number {
+  let max = 0;
+  sites.forEach(site => {
+    const codeStr = site.siteCode || site.id || '';
+    const match = codeStr.match(/SITE-(\d+)/i) || codeStr.match(/(\d+)/);
+    if (match) {
+      const val = parseInt(match[1], 10);
+      if (!isNaN(val) && val > max) {
+        max = val;
+      }
+    }
+  });
+  return max;
 }
+
+export function generateSiteCode(num: number): string {
+  return `SITE-${num.toString().padStart(2, '0')}`;
+}
+
+export const OFFICE_PRESETS = [
+  {
+    name: "Quarry Bay Office", 
+    lat: 22.2854, 
+    lng: 114.2128,
+    keywords: ["quarry bay", "qb", "taikoo", "headquarter", "hq", "鰂魚涌"]
+  },
+  {
+    name: "Kwun Tong Office", 
+    lat: 22.3134, 
+    lng: 114.2238,
+    keywords: ["kwun tong", "kt", "觀塘"]
+  }
+];
 
 export const DISTRICT_DATA: Record<string, DistrictConfig> = {
   "Tsuen Wan West / Sham Tseng": { 
@@ -209,27 +295,13 @@ export const DISTRICT_DATA: Record<string, DistrictConfig> = {
     estatesPri: ["Discovery Bay Phase 1", "Discovery Bay Phase 5", "Discovery Bay Phase 12", "La Vista"], 
     employees: 70, pubRatio: 0.01 
   },
-  "Islands District (離島區)": { 
-    name: "Islands District (離島區)", nameZH: "離島區", lat: 22.2084, lng: 114.0289, radius: 5.0, 
+  "Islands District": { 
+    name: "Islands District", nameZH: "離島區", lat: 22.2084, lng: 114.0289, radius: 5.0, 
     estatesPub: ["Cheung Kwai Estate", "Nga Ning Court", "Lung Tin Estate"], 
     estatesPri: ["Scenic Crest", "Peninsula Marina", "Seaview Crescent", "Cheung Chau Townhouse", "Lamma Beachside Villa"], 
     employees: 120, pubRatio: 0.40 
   }
 };
-
-export const OFFICE_PRESETS = [
-  { name: "Taikoo Place, Quarry Bay (Headquarter)", lat: 22.2854, lng: 114.2128 },
-  { name: "Millennium City, Kwun Tong", lat: 22.3134, lng: 114.2238 }
-];
-
-export interface GeodataItem {
-  name: string;
-  nameZH: string;
-  area: string;
-  type: "Public" | "Private";
-  lat: number;
-  lng: number;
-}
 
 export const LOCAL_GEODATA_BASE: GeodataItem[] = [
   // Tsuen Wan West / Sham Tseng
@@ -237,7 +309,7 @@ export const LOCAL_GEODATA_BASE: GeodataItem[] = [
   { name: "Rhine Garden", nameZH: "海韻花園", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3688, lng: 114.0621 },
   { name: "Bellagio", nameZH: "碧堤半島", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3676, lng: 114.0565 },
   { name: "Lido Garden", nameZH: "麗都花園", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3681, lng: 114.0581 },
-  { name: "Hong Kong Garden", nameZH: "青龍頭香港花園", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3615, lng: 114.0321 },
+  { name: "Hong Kong Garden", nameZH: "豪景花園", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3623, lng: 114.0401 },
   { name: "Bayview Garden", nameZH: "灣景花園", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3705, lng: 114.1051 },
   { name: "Greenview Court", nameZH: "翠濤閣", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3718, lng: 114.1042 },
   { name: "Serenade Cove", nameZH: "韻濤居", area: "Tsuen Wan West / Sham Tseng", type: "Private", lat: 22.3731, lng: 114.1032 },
@@ -393,6 +465,8 @@ export const LOCAL_GEODATA_BASE: GeodataItem[] = [
   { name: "Sai Kung Town Centre", nameZH: "西貢市中心", area: "Sai Kung Town", type: "Private", lat: 22.3814, lng: 114.2705 },
   { name: "Lakeside Garden Estate", nameZH: "翠塘花園", area: "Sai Kung Town", type: "Public", lat: 22.3788, lng: 114.2721 },
   { name: "Marina Cove", nameZH: "匡湖居", area: "Sai Kung Town", type: "Private", lat: 22.3552, lng: 114.2618 },
+  { name: "The Symphony", nameZH: "逸瓏園", area: "Sai Kung Town", type: "Private", lat: 22.3805, lng: 114.2685 },
+  { name: "Hong Village", nameZH: "康村", area: "Sai Kung Town", type: "Private", lat: 22.3822, lng: 114.2655 },
 
   // Lai Chi Kok / Mei Foo
   { name: "Mei Foo Sun Chuen", nameZH: "美孚新邨", area: "Lai Chi Kok / Mei Foo", type: "Private", lat: 22.3375, lng: 114.1384 },
@@ -440,6 +514,7 @@ export const LOCAL_GEODATA_BASE: GeodataItem[] = [
   { name: "Victoria Skye", nameZH: "天寰", area: "Kowloon City / Kai Tak", type: "Private", lat: 22.3275, lng: 114.2011 },
   { name: "Oasis Kai Tak", nameZH: "Oasis 啟德", area: "Kowloon City / Kai Tak", type: "Private", lat: 22.3285, lng: 114.2001 },
   { name: "K. Summit", nameZH: "嘉峯匯", area: "Kowloon City / Kai Tak", type: "Private", lat: 22.3292, lng: 114.1988 },
+  { name: "Kai Tak Phase I", nameZH: "啟德一號", area: "Kowloon City / Kai Tak", type: "Private", lat: 22.3278, lng: 114.2012 },
 
   // Wong Tai Sin / Diamond Hill
   { name: "Choi Hung Estate", nameZH: "彩虹邨", area: "Wong Tai Sin / Diamond Hill", type: "Public", lat: 22.3381, lng: 114.2052 },
@@ -470,18 +545,24 @@ export const LOCAL_GEODATA_BASE: GeodataItem[] = [
   { name: "Yau Lai Estate", nameZH: "油麗邨", area: "Lam Tin / Yau Tong", type: "Public", lat: 22.3015, lng: 114.2335 },
   { name: "Ping Tin Estate", nameZH: "平田邨", area: "Lam Tin / Yau Tong", type: "Public", lat: 22.3065, lng: 114.2388 },
   { name: "Peninsula East", nameZH: "東源街", area: "Lam Tin / Yau Tong", type: "Private", lat: 22.2965, lng: 114.2355 },
+  { name: "Ko Cheung Court", nameZH: "高翔苑", area: "Lam Tin / Yau Tong", type: "Public", lat: 22.2995, lng: 114.2398 },
+  { name: "Sceneway Garden Phase 2", nameZH: "匯景花園二期", area: "Lam Tin / Yau Tong", type: "Private", lat: 22.3045, lng: 114.2335 },
+  { name: "Maya", nameZH: "曦臺", area: "Lam Tin / Yau Tong", type: "Private", lat: 22.2988, lng: 114.2312 },
+  { name: "The Coast Line", nameZH: "親海駅", area: "Lam Tin / Yau Tong", type: "Private", lat: 22.2952, lng: 114.2372 },
 
   // Quarry Bay / Taikoo
   { name: "Taikoo Shing", nameZH: "太古城", area: "Quarry Bay / Taikoo", type: "Private", lat: 22.2861, lng: 114.2184 },
   { name: "Kornhill", nameZH: "康怡花園", area: "Quarry Bay / Taikoo", type: "Private", lat: 22.2818, lng: 114.2162 },
   { name: "The Orchards", nameZH: "逸樺園", area: "Quarry Bay / Taikoo", type: "Private", lat: 22.2825, lng: 114.2135 },
   { name: "Model Housing Estate", nameZH: "模範邨", area: "Quarry Bay / Taikoo", type: "Public", lat: 22.2895, lng: 114.2081 },
+  { name: "Mount Parker Residences", nameZH: "柏架山莊", area: "Quarry Bay / Taikoo", type: "Private", lat: 22.2842, lng: 114.2152 },
 
   // North Point / Fortress Hill
   { name: "City Garden", nameZH: "城市花園", area: "North Point / Fortress Hill", type: "Private", lat: 22.2915, lng: 114.1952 },
   { name: "Provident Centre", nameZH: "和富中心", area: "North Point / Fortress Hill", type: "Private", lat: 22.2922, lng: 114.1988 },
   { name: "Fleur Pavilia", nameZH: "柏蔚山", area: "North Point / Fortress Hill", type: "Private", lat: 22.2895, lng: 114.2015 },
   { name: "Healthy Village", nameZH: "健康村", area: "North Point / Fortress Hill", type: "Public", lat: 22.2912, lng: 114.2045 },
+  { name: "Harbour East", nameZH: "海璇", area: "North Point / Fortress Hill", type: "Private", lat: 22.2905, lng: 114.1985 },
 
   // Chai Wan / Shau Kei Wan
   { name: "Heng Fa Chuen", nameZH: "杏花邨", area: "Chai Wan / Shau Kei Wan", type: "Private", lat: 22.2762, lng: 114.2401 },
@@ -495,6 +576,8 @@ export const LOCAL_GEODATA_BASE: GeodataItem[] = [
   { name: "Elizabeth House", nameZH: "伊利莎伯大廈", area: "Wan Chai / Causeway Bay", type: "Private", lat: 22.2811, lng: 114.1808 },
   { name: "Blue Pool Court", nameZH: "藍塘閣", area: "Wan Chai / Causeway Bay", type: "Private", lat: 22.2705, lng: 114.1845 },
   { name: "Lai Tak Tsuen", nameZH: "美德邨", area: "Wan Chai / Causeway Bay", type: "Public", lat: 22.2785, lng: 114.1925 },
+  { name: "Illumination Terrace", nameZH: "光明臺", area: "Wan Chai / Causeway Bay", type: "Private", lat: 22.2772, lng: 114.1895 },
+  { name: "The Peak Tower", nameZH: "山頂豪宅", area: "Wan Chai / Causeway Bay", type: "Private", lat: 22.2695, lng: 114.1552 },
 
   // Central / Admiralty / Sheung Wan
   { name: "Robinson Place", nameZH: "樂信臺", area: "Central / Admiralty / Sheung Wan", type: "Private", lat: 22.2798, lng: 114.1532 },
@@ -512,17 +595,16 @@ export const LOCAL_GEODATA_BASE: GeodataItem[] = [
   { name: "Aberdeen Centre", nameZH: "香港仔中心", area: "Aberdeen / Ap Lei Chau", type: "Private", lat: 22.2488, lng: 114.1558 },
   { name: "Ap Lei Chau Estate", nameZH: "鴨脷洲邨", area: "Aberdeen / Ap Lei Chau", type: "Public", lat: 22.2442, lng: 114.1572 },
   { name: "Shek Pai Wan Estate", nameZH: "石排灣邨", area: "Aberdeen / Ap Lei Chau", type: "Public", lat: 22.2472, lng: 114.1625 },
-  { name: "Kai Tak Phase I", nameZH: "啟德一號", area: "Kowloon City / Kai Tak", type: "Private", lat: 22.3278, lng: 114.2012 },
-  
-  // Islands District (離島區)
-  { name: "Cheung Kwai Estate", nameZH: "長貴邨", area: "Islands District (離島區)", type: "Public", lat: 22.2132, lng: 114.0275 },
-  { name: "Nga Ning Court", nameZH: "雅寧苑", area: "Islands District (離島區)", type: "Public", lat: 22.2078, lng: 114.0295 },
-  { name: "Lung Tin Estate", nameZH: "龍田邨", area: "Islands District (離島區)", type: "Public", lat: 22.2568, lng: 113.8612 },
-  { name: "Scenic Crest", nameZH: "海景台", area: "Islands District (離島區)", type: "Private", lat: 22.2115, lng: 114.0252 },
-  { name: "Peninsula Marina", nameZH: "半島碼頭別墅", area: "Islands District (離島區)", type: "Private", lat: 22.2045, lng: 114.0322 },
-  { name: "Seaview Crescent", nameZH: "東涌海堤灣畔", area: "Islands District (離島區)", type: "Private", lat: 22.2895, lng: 113.9465 },
-  { name: "Cheung Chau Townhouse", nameZH: "長洲村屋", area: "Islands District (離島區)", type: "Private", lat: 22.2062, lng: 114.0281 },
-  { name: "Lamma Beachside Villa", nameZH: "南丫島海濱別墅", area: "Islands District (離島區)", type: "Private", lat: 22.2285, lng: 114.1205 },
+
+  // Islands District
+  { name: "Cheung Kwai Estate", nameZH: "長貴邨", area: "Islands District", type: "Public", lat: 22.2132, lng: 114.0275 },
+  { name: "Nga Ning Court", nameZH: "雅寧苑", area: "Islands District", type: "Public", lat: 22.2078, lng: 114.0295 },
+  { name: "Lung Tin Estate", nameZH: "龍田邨", area: "Islands District", type: "Public", lat: 22.2568, lng: 113.8612 },
+  { name: "Scenic Crest", nameZH: "海景台", area: "Islands District", type: "Private", lat: 22.2115, lng: 114.0252 },
+  { name: "Peninsula Marina", nameZH: "半島碼頭別墅", area: "Islands District", type: "Private", lat: 22.2045, lng: 114.0322 },
+  { name: "Seaview Crescent", nameZH: "東涌海堤灣畔", area: "Islands District", type: "Private", lat: 22.2895, lng: 113.9465 },
+  { name: "Cheung Chau Townhouse", nameZH: "長洲村屋", area: "Islands District", type: "Private", lat: 22.2062, lng: 114.0281 },
+  { name: "Lamma Beachside Villa", nameZH: "南丫島海濱別墅", area: "Islands District", type: "Private", lat: 22.2285, lng: 114.1205 },
   
   // Tung Chung / Airport
   { name: "Yat Tung Estate", nameZH: "逸東邨", area: "Tung Chung / Airport", type: "Public", lat: 22.2818, lng: 113.9351 },
@@ -544,47 +626,5 @@ export const LOCAL_GEODATA_BASE: GeodataItem[] = [
   { name: "Park Island Phase 1", nameZH: "珀麗灣一期", area: "Ma Wan / Park Island", type: "Private", lat: 22.3522, lng: 114.0612 },
   { name: "Park Island Phase 2", nameZH: "珀麗灣二期", area: "Ma Wan / Park Island", type: "Private", lat: 22.3512, lng: 114.0625 },
   { name: "Park Island Phase 3", nameZH: "珀麗灣三期", area: "Ma Wan / Park Island", type: "Private", lat: 22.3505, lng: 114.0638 },
-  { name: "Tin Wan House (Island Area)", nameZH: "天灣閣", area: "Ma Wan / Park Island", type: "Public", lat: 22.3532, lng: 114.0585 },
-
-  // Sai Kung Town updates
-  { name: "The Symphony", nameZH: "逸瓏園", area: "Sai Kung Town", type: "Private", lat: 22.3805, lng: 114.2685 },
-  { name: "Hong Village", nameZH: "康村", area: "Sai Kung Town", type: "Private", lat: 22.3822, lng: 114.2655 },
-
-  // Lam Tin / Yau Tong updates
-  { name: "Ko Cheung Court", nameZH: "高翔苑", area: "Lam Tin / Yau Tong", type: "Public", lat: 22.2995, lng: 114.2398 },
-  { name: "Sceneway Garden Phase 2", nameZH: "匯景花園二期", area: "Lam Tin / Yau Tong", type: "Private", lat: 22.3045, lng: 114.2335 },
-  { name: "Maya", nameZH: "曦臺", area: "Lam Tin / Yau Tong", type: "Private", lat: 22.2988, lng: 114.2312 },
-  { name: "The Coast Line", nameZH: "親海駅", area: "Lam Tin / Yau Tong", type: "Private", lat: 22.2952, lng: 114.2372 },
-
-  // Quarry Bay & North Point & Wan Chai updates
-  { name: "Mount Parker Residences", nameZH: "柏架山莊", area: "Quarry Bay / Taikoo", type: "Private", lat: 22.2842, lng: 114.2152 },
-  { name: "Harbour East", nameZH: "海璇", area: "North Point / Fortress Hill", type: "Private", lat: 22.2905, lng: 114.1985 },
-  { name: "Illumination Terrace", nameZH: "光明臺", area: "Wan Chai / Causeway Bay", type: "Private", lat: 22.2772, lng: 114.1895 },
-  { name: "The Peak Tower", nameZH: "山頂豪宅", area: "Wan Chai / Causeway Bay", type: "Private", lat: 22.2695, lng: 114.1552 },
-
-  { name: "Yoho West", nameZH: "天榮形點", area: "Tin Shui Wai", type: "Private", lat: 22.4612, lng: 114.0018 },
-  { name: "The Pavilia Farm", nameZH: "柏傲莊", area: "Sha Tin / Tai Wai", type: "Private", lat: 22.3725, lng: 114.1782 },
-  { name: "Bel-Air", nameZH: "貝沙灣", area: "Aberdeen / Ap Lei Chau", type: "Private", lat: 22.2615, lng: 114.1292 }
+  { name: "Tin Wan House (Island Area)", nameZH: "天灣閣", area: "Ma Wan / Park Island", type: "Public", lat: 22.3532, lng: 114.0585 }
 ];
-
-export const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-  const R = 6371; // Earth's radius in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
-
-export const getHKRoadFactor = (districtName: string) => {
-  const ntDistricts = [
-    "Tuen Mun Town & North", "Tuen Mun South / Gold Coast", "Yuen Long Town", "Tin Shui Wai",
-    "Fanling / Sheung Shui", "Tai Po Town", "Sha Tin / Tai Wai", "Ma On Shan / Fo Tan",
-    "Tseung Kwan O", "Sai Kung Town", "Tung Chung / Airport", "Discovery Bay", "Tsuen Wan West / Sham Tseng",
-    "Ma Wan / Park Island", "Tsing Yi", "Islands District (離島區)"
-  ];
-  return ntDistricts.includes(districtName) ? 1.38 : 1.28;
-};

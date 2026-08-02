@@ -1,5 +1,5 @@
 {
-  "name": "Remix: Employee Commuting - ESG Scope 3 CAT 7",
+  "name": "Employee Commuting dashboard- ESG Scope 3 CAT 7",
   "description": "Calculates and optimizes Hong Kong employee commuting emissions (Scope 3 Category 7) using 18 districts averaging, Lands Department Geodata API sampling, and custom transport emission factors.",
   "requestFramePermissions": [],
   "majorCapabilities": [
