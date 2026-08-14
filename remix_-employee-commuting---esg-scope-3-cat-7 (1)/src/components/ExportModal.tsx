@@ -28,7 +28,6 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
   const ALL_COLUMNS: ColumnOption[] = [
     { key: 'id', label: 'Employee ID', getValue: (r) => r.id, defaultChecked: true },
-    { key: 'segment', label: 'Business Segment', getValue: (r) => r.segment || 'P&C', defaultChecked: true },
     { key: 'district', label: 'Residential District', getValue: (r) => r.district, defaultChecked: true },
     { key: 'mode', label: 'Transport Mode', getValue: (r) => r.mode, defaultChecked: true },
     { key: 'siteMatchedName', label: 'Work Site Name', getValue: (r) => r.siteMatchedName, defaultChecked: true },

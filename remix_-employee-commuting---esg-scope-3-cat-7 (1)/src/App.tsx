@@ -34,8 +34,7 @@ import {
   Calendar,
   Sparkles,
   LayoutDashboard,
-  ChevronDown,
-  Route
+  ChevronDown
 } from 'lucide-react';
 
 // Route Map Icon matching custom design (two pins with dashed connecting route)
@@ -122,12 +121,12 @@ export function App() {
   };
 
   // Roster Management Handlers
-  const handleAddEmployee = (newEmp: Omit<CommuteRosterItem, 'id'> & { segment?: string }) => {
-    const created: CommuteRosterItem = {
-      ...newEmp,
-      id: `EMP-${(employeeRoster.length + 1).toString().padStart(4, '0')}`
-    };
-    setEmployeeRoster(prev => [created, ...prev]);
+  const handleAddEmployee = (newEmp: CommuteRosterItem) => {
+    setEmployeeRoster(prev => [newEmp, ...prev]);
+  };
+
+  const handleEditEmployee = (updatedEmp: CommuteRosterItem, originalId?: string) => {
+    setEmployeeRoster(prev => prev.map(e => (e.id === (originalId || updatedEmp.id) ? updatedEmp : e)));
   };
 
   const handleDeleteEmployee = (id: string) => {
@@ -135,9 +134,7 @@ export function App() {
   };
 
   const handleClearRoster = () => {
-    if (window.confirm("Are you sure you want to clear all imported employee records?")) {
-      setEmployeeRoster([]);
-    }
+    setEmployeeRoster([]);
   };
 
   const handleConfirmBulkRosterUpload = (roster: CommuteRosterItem[]) => {
@@ -188,8 +185,7 @@ export function App() {
   const handleExportData = () => {
     const exportRows = rosterCalcs.map(r => ({
       'Employee ID': r.id,
-      'Segment': (r as any).segment || 'P&C',
-      'Residential District': r.district,
+      'Home Area': r.district,
       'Transport Mode': r.mode,
       'Work Site': r.siteMatchedName,
       'Worker Role': r.workerType,
@@ -234,7 +230,7 @@ export function App() {
     {
       id: 'sampler',
       label: 'Area-to-Site Commute Reference',
-      icon: <Route className="w-5 h-5 shrink-0 text-slate-700"/>,
+      icon: <RouteMapIcon className="w-5 h-5 shrink-0 text-slate-700" />,
       onClick: () => setActiveTab('sampler')
     }
   ];
@@ -401,6 +397,8 @@ export function App() {
               rosterCalcs={rosterCalcs}
               customSites={customSites}
               onDeleteEmployee={handleDeleteEmployee}
+              onEditEmployee={handleEditEmployee}
+              onAddEmployee={handleAddEmployee}
               onClearRoster={handleClearRoster}
               onOpenImportModal={() => rosterFileInputRef.current?.click()}
             />

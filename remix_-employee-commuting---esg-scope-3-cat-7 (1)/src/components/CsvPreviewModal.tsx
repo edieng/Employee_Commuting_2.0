@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Check, Users, FileSpreadsheet } from 'lucide-react';
+import React from 'react';
+import { X, Check, FileSpreadsheet } from 'lucide-react';
 import { CommuteRosterItem } from '../types';
 import { getAllocatedTransportMode } from '../utils/constants';
 
@@ -26,13 +26,16 @@ export const CsvPreviewModal: React.FC<CsvPreviewModalProps> = ({
     ) || availableHeaders[0] || '';
   };
 
-  const [districtCol, setDistrictCol] = useState(findBestHeader(['district', 'area', 'home', 'residential']));
-  const [modeCol, setModeCol] = useState(findBestHeader(['mode', 'transport', 'commute', 'method']));
-  const [siteCol, setSiteCol] = useState(findBestHeader(['site', 'workplace', 'office', 'destination']));
-  const [workerTypeCol, setWorkerTypeCol] = useState(findBestHeader(['worker', 'category', 'role', 'type']));
-  const [segmentCol, setSegmentCol] = useState(findBestHeader(['segment', 'department', 'unit', 'team', 'division']));
+  const empIdCol = findBestHeader(['employee id', 'empid', 'emp id', 'employee_id', 'staff id', 'id', 'code']);
+  const districtCol = findBestHeader(['district', 'area', 'home', 'residential']);
+  const siteCol = findBestHeader(['site', 'workplace', 'office', 'destination']);
+  const workerTypeCol = findBestHeader(['worker', 'category', 'role', 'type']);
+  const modeCol = findBestHeader(['mode', 'transport', 'commute', 'method']);
 
   const parsedRoster: CommuteRosterItem[] = rawRosterData.map((row, idx) => {
+    const rawId = String(row[empIdCol] || '').trim();
+    const id = rawId ? rawId : `EMP-${(idx + 1).toString().padStart(4, '0')}`;
+    
     const district = String(row[districtCol] || 'Tsuen Wan Town').trim();
     const modeRaw = String(row[modeCol] || '').trim().toLowerCase();
     
@@ -46,7 +49,7 @@ export const CsvPreviewModal: React.FC<CsvPreviewModalProps> = ({
     } else if (modeRaw.includes('mtr') || modeRaw.includes('train') || modeRaw.includes('subway')) {
       mode = 'MTR';
     } else {
-      // Auto-assign transport mode according to HK region ratio & walk rule (distance <= 1.2km)
+      // Auto-assign transport mode according to HK region ratio & walk rule
       mode = getAllocatedTransportMode(5.0, district);
     }
 
@@ -54,16 +57,13 @@ export const CsvPreviewModal: React.FC<CsvPreviewModalProps> = ({
     const workerTypeRaw = String(row[workerTypeCol] || 'Office').trim().toLowerCase();
     const workerType: 'Office' | 'Frontline' = workerTypeRaw.includes('front') ? 'Frontline' : 'Office';
 
-    const segment = String(row[segmentCol] || 'IT').trim();
-
     return {
-      id: `EMP-${(idx + 1).toString().padStart(4, '0')}`,
+      id,
       district,
       mode,
       site,
-      workerType,
-      segment
-    } as CommuteRosterItem & { segment?: string };
+      workerType
+    };
   });
 
   const handleConfirm = () => {
@@ -76,114 +76,71 @@ export const CsvPreviewModal: React.FC<CsvPreviewModalProps> = ({
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
         
         {/* Header */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FileSpreadsheet className="w-5 h-5 text-blue-400" />
+        <div className="px-6 py-4 bg-white border-b border-slate-200 text-slate-900 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-slate-100 rounded-lg text-slate-700">
+              <FileSpreadsheet className="w-5 h-5 text-slate-700" />
+            </div>
             <div>
-              <h2 className="text-base font-bold">Import Employee Commute Roster ({rawRosterData.length} Records)</h2>
-              <p className="text-xs text-slate-300">
-                Match CSV/Excel column headers to populate district and transport data
+              <h2 className="text-base font-bold text-slate-900">
+                Import Employee Commute Roster ({rawRosterData.length} Records)
+              </h2>
+              <p className="text-xs text-slate-500">
+                Preview roster data imported from Excel / CSV file before confirming
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+        <div className="p-6 overflow-y-auto flex-1 space-y-4">
           
-          {/* Header selectors */}
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-            <span className="text-xs font-bold text-slate-800 uppercase tracking-tight block">
-              Match Header Mapping
-            </span>
-
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              <div>
-                <label className="text-[10px] font-semibold text-slate-600 block mb-1">Segment</label>
-                <select
-                  value={segmentCol}
-                  onChange={e => setSegmentCol(e.target.value)}
-                  className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-semibold"
-                >
-                  {availableHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-semibold text-slate-600 block mb-1">District *</label>
-                <select
-                  value={districtCol}
-                  onChange={e => setDistrictCol(e.target.value)}
-                  className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-semibold"
-                >
-                  {availableHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-semibold text-slate-600 block mb-1">Transport Mode</label>
-                <select
-                  value={modeCol}
-                  onChange={e => setModeCol(e.target.value)}
-                  className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  {availableHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-semibold text-slate-600 block mb-1">Work Site</label>
-                <select
-                  value={siteCol}
-                  onChange={e => setSiteCol(e.target.value)}
-                  className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  {availableHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-semibold text-slate-600 block mb-1">Worker Type</label>
-                <select
-                  value={workerTypeCol}
-                  onChange={e => setWorkerTypeCol(e.target.value)}
-                  className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  {availableHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
-              </div>
-            </div>
-          </div>
-
           {/* Table Preview */}
-          <div className="border border-slate-200 rounded-xl overflow-hidden">
-            <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 font-bold text-xs text-slate-700">
-              Parsed Preview (First {Math.min(10, parsedRoster.length)} rows)
+          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+            <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 font-bold text-xs text-slate-700 flex items-center justify-between">
+              <span>Parsed Preview (First {Math.min(10, parsedRoster.length)} of {parsedRoster.length} rows)</span>
             </div>
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 text-slate-600 text-[11px] uppercase font-bold tracking-tight border-b border-slate-200">
-                  <th className="px-4 py-2">Emp ID</th>
-                  <th className="px-4 py-2">Segment</th>
-                  <th className="px-4 py-2">District</th>
-                  <th className="px-4 py-2">Mode</th>
-                  <th className="px-4 py-2">Worker Type</th>
+                <tr className="bg-white text-slate-500 text-[11px] uppercase font-bold tracking-tight border-b border-slate-200">
+                  <th className="px-4 py-2.5 text-slate-900">Employee ID</th>
+                  <th className="px-4 py-2.5 text-slate-900">Home Area</th>
+                  <th className="px-4 py-2.5 text-slate-900">Work Site</th>
+                  <th className="px-4 py-2.5 text-slate-900">Worker Type</th>
+                  <th className="px-4 py-2.5 text-slate-900">Transport Mode</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 text-xs text-slate-700">
+              <tbody className="divide-y divide-slate-100 text-xs text-slate-700 font-sans">
                 {parsedRoster.slice(0, 10).map((r, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50 font-mono">
-                    <td className="px-4 py-2 font-bold text-slate-500">{r.id}</td>
-                    <td className="px-4 py-2 font-sans font-bold text-slate-800">{(r as any).segment || 'P&C'}</td>
-                    <td className="px-4 py-2 font-sans text-slate-900">{r.district}</td>
-                    <td className="px-4 py-2 font-semibold text-emerald-700">{r.mode}</td>
-                    <td className="px-4 py-2 font-sans text-slate-600">{r.workerType}</td>
+                  <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="px-4 py-2.5 font-bold text-slate-900 font-mono">{r.id}</td>
+                    <td className="px-4 py-2.5 text-slate-800">{r.district}</td>
+                    <td className="px-4 py-2.5 text-slate-800">{r.site}</td>
+                    <td className="px-4 py-2.5 text-slate-600">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border ${
+                        r.workerType === 'Frontline' 
+                          ? 'bg-amber-50 text-amber-800 border-amber-200/90' 
+                          : 'bg-slate-100 text-slate-700 border-slate-200/80'
+                      }`}>
+                        {r.workerType || 'Office'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium shadow-2xs ${
+                        r.mode === 'MTR' ? 'bg-emerald-500 text-white' :
+                        r.mode === 'Bus' ? 'bg-amber-500 text-white' :
+                        r.mode === 'Private Car' ? 'bg-blue-600 text-white' :
+                        'bg-slate-700 text-white'
+                      }`}>
+                        {r.mode}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -196,13 +153,13 @@ export const CsvPreviewModal: React.FC<CsvPreviewModalProps> = ({
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-100 transition-colors"
+            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             <Check className="w-4 h-4" />
             Import {parsedRoster.length} Employees
