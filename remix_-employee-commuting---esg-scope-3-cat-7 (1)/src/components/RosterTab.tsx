@@ -118,9 +118,6 @@ export const RosterTab: React.FC<RosterTabProps> = ({
               )}
             </div>
           </h2>
-          <p className="text-xs text-slate-500">
-            Individual employee commute profiles and workplace assignments
-          </p>
         </div>
 
         <div className="flex items-center gap-2">

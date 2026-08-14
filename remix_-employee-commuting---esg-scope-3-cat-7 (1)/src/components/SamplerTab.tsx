@@ -41,10 +41,10 @@ export const SamplerTab: React.FC<SamplerTabProps> = ({ districtCalcs, customSit
           </h2>
         </div>
 
-        {/* Home Area Selector in Top Header */}
+        {/* Home Location Selector in Top Header */}
         <div className="flex items-center gap-2 shrink-0">
           <label className="text-xs font-semibold text-slate-700 shrink-0 uppercase tracking-tight">
-            Select Home Area:
+            Select Home Location:
           </label>
           <select
             value={selectedDistrict}
