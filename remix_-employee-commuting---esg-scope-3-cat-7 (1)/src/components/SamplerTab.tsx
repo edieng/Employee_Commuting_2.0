@@ -76,16 +76,6 @@ export const SamplerTab: React.FC<SamplerTabProps> = ({ districtCalcs, customSit
               </div>
 
               <div className="flex justify-between py-1 border-b border-slate-50">
-                <span className="text-slate-500">Public Housing Ratio:</span>
-                <span className="font-mono font-semibold text-slate-800">{Math.round(activeData.pubRatio * 100)}%</span>
-              </div>
-
-              <div className="flex justify-between py-1 border-b border-slate-50">
-                <span className="text-slate-500">Private Housing Ratio:</span>
-                <span className="font-mono font-semibold text-slate-800">{Math.round((1 - activeData.pubRatio) * 100)}%</span>
-              </div>
-
-              <div className="flex justify-between py-1 border-b border-slate-50">
                 <span className="text-slate-500">Average Commute Dist:</span>
                 <span className="font-mono font-semibold text-slate-800">{activeData.avgDistance} km</span>
               </div>

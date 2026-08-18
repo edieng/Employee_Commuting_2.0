@@ -1,11 +1,13 @@
 {
     "configurations": [
         
+        
+        
         {
             "type": "chrome",
-            "name": "https://localhost:8080",
+            "name": "https://localhost:3000",
             "request": "launch",
-            "url": "https://localhost:8080"
+            "url": "https://localhost:3000"
         }
     ]
 }

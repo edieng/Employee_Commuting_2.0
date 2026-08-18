@@ -107,7 +107,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 <tr className="bg-slate-50/80 text-slate-500 text-xs font-medium border-b border-slate-200/80">
                   <th className="px-5 py-3">Area (EN / ZH)</th>
                   <th className="px-5 py-3 text-right">Employees</th>
-                  <th className="px-5 py-3 text-right">Avg Dist (km)</th>
                   <th className="px-5 py-3 text-right">Selected Month(s) (tCO₂e)</th>
                   {showAnnualTotal && (
                     <th className="px-5 py-3 text-right">Annual 12-Month (tCO₂e)</th>
