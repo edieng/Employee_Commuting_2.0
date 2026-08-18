@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapPin, Navigation, Compass, Building2, Footprints } from 'lucide-react';
+import { MapPin, Navigation, Compass, Footprints } from 'lucide-react';
 import { CustomWorkSite, DistrictCalculation } from '../types';
 import { DISTRICT_DATA, renderAreaSelectOptions } from '../utils/constants';
 import { haversineDistance, getHKRoadFactor } from '../services/emissionCalculator';
@@ -36,11 +36,11 @@ export const DistrictToSiteReview: React.FC<DistrictToSiteReviewProps> = ({
       <div className="p-6 bg-slate-50 border-b border-slate-200">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1">
           <h4 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-slate-400 font-extrabold text-lg">•</span>
             {displayName} Commuting Profile
           </h4>
           <span className="text-xs bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full font-medium border border-slate-200 shrink-0">
-            {residentEmployeesCount} Total Employees Here
+            {residentEmployeesCount} Total Employees Resident Here
           </span>
         </div>
         <p className="text-xs text-slate-600 mb-3">
@@ -102,8 +102,7 @@ export const DistrictToSiteReview: React.FC<DistrictToSiteReviewProps> = ({
                   </span>
                 </div>
 
-                <h5 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4 text-slate-500 shrink-0" />
+                <h5 className="text-sm font-bold text-slate-900">
                   [{siteCode}] {site.name}
                 </h5>
 

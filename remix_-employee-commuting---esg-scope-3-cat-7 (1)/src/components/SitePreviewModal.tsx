@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Check, Building2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Check, Building2, MapPin } from 'lucide-react';
 import { CustomWorkSite } from '../types';
 import { getHighestSiteCodeNumber, generateSiteCode } from '../utils/constants';
 
@@ -26,41 +26,85 @@ export const SitePreviewModal: React.FC<SitePreviewModalProps> = ({
   const findBestHeader = (keywords: string[]) => {
     return availableHeaders.find(h => 
       keywords.some(k => h.toLowerCase().trim().includes(k))
-    ) || availableHeaders[0] || '';
+    ) || '';
   };
 
-  const [nameCol, setNameCol] = useState(findBestHeader(['site name', 'sitename', 'name', 'building', 'office', 'hub']));
-  const [districtCol, setDistrictCol] = useState(findBestHeader(['district', 'area', 'region', 'location']));
-  const [latCol, setLatCol] = useState(findBestHeader(['lat', 'latitude', 'gps y', 'y']));
-  const [lngCol, setLngCol] = useState(findBestHeader(['lng', 'lon', 'longitude', 'gps x', 'x']));
+  const codeCol = findBestHeader(['site code', 'sitecode', 'site_code', 'code', 'site id', 'site_id']);
+  const nameCol = findBestHeader(['site name', 'sitename', 'work site', 'workplace', 'name', 'building', 'office', 'hub']) || availableHeaders[0] || '';
+  const districtCol = findBestHeader(['district', 'area', 'region', 'location']) || availableHeaders[1] || '';
+  const latCol = findBestHeader(['lat', 'latitude', 'gps y', 'y']);
+  const lngCol = findBestHeader(['lng', 'lon', 'longitude', 'gps x', 'x']);
 
   // Highest existing site code index
   const startNum = getHighestSiteCodeNumber(customSites) + 1;
 
-  // Map parsed rows
-  const parsedSites: CustomWorkSite[] = rawSiteData.map((row, idx) => {
-    const name = String(row[nameCol] || `Workplace ${idx + 1}`).trim();
-    const district = String(row[districtCol] || 'Central').trim();
-    
-    let lat = parseFloat(row[latCol]);
-    let lng = parseFloat(row[lngCol]);
+  // Local state for editable parsed sites
+  const [parsedSites, setParsedSites] = useState<CustomWorkSite[]>(() => {
+    return rawSiteData.map((row, idx) => {
+      const rawCode = codeCol ? String(row[codeCol] || '').trim() : '';
+      const assignedCode = rawCode || generateSiteCode(startNum + idx);
 
-    if (isNaN(lat)) lat = 22.28;
-    if (isNaN(lng)) lng = 114.15;
+      const name = String(row[nameCol] || `Workplace ${idx + 1}`).trim();
+      const district = String(row[districtCol] || 'Central').trim();
+      
+      let lat = latCol ? parseFloat(row[latCol]) : NaN;
+      let lng = lngCol ? parseFloat(row[lngCol]) : NaN;
 
-    const assignedCode = generateSiteCode(startNum + idx);
+      if (isNaN(lat)) lat = 22.28;
+      if (isNaN(lng)) lng = 114.15;
 
-    return {
-      id: assignedCode,
-      name,
-      district,
-      lat,
-      lng,
-      staffCount: 100,
-      visible: true,
-      siteCode: assignedCode
-    };
+      return {
+        id: assignedCode,
+        name,
+        district,
+        lat,
+        lng,
+        staffCount: 100,
+        visible: true,
+        siteCode: assignedCode
+      };
+    });
   });
+
+  // Re-initialize if rawSiteData changes
+  useEffect(() => {
+    setParsedSites(
+      rawSiteData.map((row, idx) => {
+        const rawCode = codeCol ? String(row[codeCol] || '').trim() : '';
+        const assignedCode = rawCode || generateSiteCode(startNum + idx);
+
+        const name = String(row[nameCol] || `Workplace ${idx + 1}`).trim();
+        const district = String(row[districtCol] || 'Central').trim();
+        
+        let lat = latCol ? parseFloat(row[latCol]) : NaN;
+        let lng = lngCol ? parseFloat(row[lngCol]) : NaN;
+
+        if (isNaN(lat)) lat = 22.28;
+        if (isNaN(lng)) lng = 114.15;
+
+        return {
+          id: assignedCode,
+          name,
+          district,
+          lat,
+          lng,
+          staffCount: 100,
+          visible: true,
+          siteCode: assignedCode
+        };
+      })
+    );
+  }, [rawSiteData]);
+
+  const handleSiteCodeChange = (index: number, newCode: string) => {
+    const updated = [...parsedSites];
+    updated[index] = {
+      ...updated[index],
+      siteCode: newCode,
+      id: newCode || updated[index].id
+    };
+    setParsedSites(updated);
+  };
 
   const handleImport = () => {
     onConfirmUpload(parsedSites);
@@ -72,109 +116,67 @@ export const SitePreviewModal: React.FC<SitePreviewModalProps> = ({
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
         
         {/* Header */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-emerald-400" />
+        <div className="px-6 py-4 bg-white border-b border-slate-200 text-slate-900 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-slate-100 rounded-lg text-slate-700">
+              <Building2 className="w-5 h-5 text-slate-700" />
+            </div>
             <div>
-              <h2 className="text-base font-bold">Bulk Site Upload Preview ({rawSiteData.length} Sites)</h2>
-              <p className="text-xs text-slate-300">
-                Match Work Site Name, District, and GPS Coordinates. Site Codes are assigned automatically.
+              <h2 className="text-base font-bold text-slate-900">
+                Import Work Sites ({rawSiteData.length} Sites)
+              </h2>
+              <p className="text-xs text-slate-500">
+                Preview uploaded work site records. You can type or edit custom site codes below.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+        <div className="p-6 overflow-y-auto flex-1 space-y-4">
           
-          {/* Column Selector mapping */}
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-tight block">
-                Match Header Mapping
-              </span>
-              <span className="text-xs font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-200">
-                Next Auto Site Code Range: {generateSiteCode(startNum)} - {generateSiteCode(startNum + rawSiteData.length - 1)}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div>
-                <label className="text-[10px] font-semibold text-slate-600 block mb-1">Work Site Name *</label>
-                <select
-                  value={nameCol}
-                  onChange={e => setNameCol(e.target.value)}
-                  className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 font-bold text-slate-900"
-                >
-                  {availableHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-semibold text-slate-600 block mb-1">District *</label>
-                <select
-                  value={districtCol}
-                  onChange={e => setDistrictCol(e.target.value)}
-                  className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                >
-                  {availableHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-semibold text-slate-600 block mb-1">Latitude (GPS Y) *</label>
-                <select
-                  value={latCol}
-                  onChange={e => setLatCol(e.target.value)}
-                  className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 font-mono"
-                >
-                  {availableHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-semibold text-slate-600 block mb-1">Longitude (GPS X) *</label>
-                <select
-                  value={lngCol}
-                  onChange={e => setLngCol(e.target.value)}
-                  className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 font-mono"
-                >
-                  {availableHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
-              </div>
-            </div>
+          <div className="flex items-center justify-between text-xs text-slate-600 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200">
+            <span>Special site codes detected from Excel / CSV or automatically generated.</span>
+            <span className="font-semibold text-slate-800">Total: {parsedSites.length} sites</span>
           </div>
 
           {/* Table Preview */}
           <div className="border border-slate-200 rounded-xl overflow-hidden">
-            <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 font-bold text-xs text-slate-700 flex justify-between items-center">
-              <span>Parsed Preview (First {Math.min(10, parsedSites.length)} rows)</span>
-              <span className="text-[11px] font-normal text-slate-500">Site codes assigned automatically</span>
-            </div>
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 text-slate-600 text-[11px] uppercase font-bold tracking-tight border-b border-slate-200">
-                  <th className="px-4 py-2">Auto Site Code</th>
-                  <th className="px-4 py-2">Work Site Name</th>
-                  <th className="px-4 py-2">District</th>
-                  <th className="px-4 py-2">Lat</th>
-                  <th className="px-4 py-2">Lng</th>
+                <tr className="bg-slate-100 text-slate-700 text-[11px] uppercase font-bold tracking-tight border-b border-slate-200">
+                  <th className="px-3 py-2.5 w-32">Site Code (Typable)</th>
+                  <th className="px-3 py-2.5">Work Site Name</th>
+                  <th className="px-3 py-2.5 w-36">District / Area</th>
+                  <th className="px-3 py-2.5 whitespace-nowrap">GPS Coordinates</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 text-xs text-slate-700 font-mono">
-                {parsedSites.slice(0, 10).map((site, idx) => (
+              <tbody className="divide-y divide-slate-200 text-xs text-slate-700 font-sans">
+                {parsedSites.map((site, idx) => (
                   <tr key={idx} className="hover:bg-slate-50">
-                    <td className="px-4 py-2 font-bold text-emerald-800">{site.siteCode}</td>
-                    <td className="px-4 py-2 font-sans font-semibold text-slate-900">{site.name}</td>
-                    <td className="px-4 py-2 font-sans">{site.district}</td>
-                    <td className="px-4 py-2 text-slate-500">{site.lat.toFixed(4)}</td>
-                    <td className="px-4 py-2 text-slate-500">{site.lng.toFixed(4)}</td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="text"
+                        value={site.siteCode || ''}
+                        onChange={e => handleSiteCodeChange(idx, e.target.value)}
+                        placeholder="e.g. SITE-01"
+                        className="w-full px-2 py-1 text-xs font-mono font-semibold border border-slate-300 rounded-md focus:ring-1 focus:ring-slate-900 bg-white"
+                      />
+                    </td>
+                    <td className="px-3 py-2 font-bold text-slate-900">{site.name}</td>
+                    <td className="px-3 py-2 text-slate-600">{site.district}</td>
+                    <td className="px-3 py-2 text-slate-500 font-mono text-[11px]">
+                      <div className="inline-flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{site.lat.toFixed(4)}, {site.lng.toFixed(4)}</span>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -187,13 +189,13 @@ export const SitePreviewModal: React.FC<SitePreviewModalProps> = ({
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-100 transition-colors"
+            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
           >
             Cancel
           </button>
           <button
             onClick={handleImport}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             <Check className="w-4 h-4" />
             Import {parsedSites.length} Sites

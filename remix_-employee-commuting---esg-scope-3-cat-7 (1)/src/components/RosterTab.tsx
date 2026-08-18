@@ -3,7 +3,7 @@ import {
   Users, 
   Search, 
   Trash2, 
-  Pencil,
+  Pencil, 
   Upload, 
   ChevronLeft, 
   ChevronRight,
@@ -11,30 +11,36 @@ import {
   Info,
   X,
   Check,
-  Plus
+  Plus,
+  Calendar
 } from 'lucide-react';
-import { CustomWorkSite, RosterCalculationItem, CommuteRosterItem } from '../types';
-import { DISTRICT_DATA, renderAreaSelectOptions } from '../utils/constants';
+import { CustomWorkSite, RosterCalculationItem, CommuteRosterItem, MonthlyRosterMap } from '../types';
+import { DISTRICT_DATA, renderAreaSelectOptions, MONTHS_LIST, MONTH_ABBRS } from '../utils/constants';
 
 interface RosterTabProps {
   rosterCalcs: RosterCalculationItem[];
   customSites: CustomWorkSite[];
-  onDeleteEmployee: (id: string) => void;
-  onEditEmployee?: (updatedItem: CommuteRosterItem, originalId?: string) => void;
-  onAddEmployee?: (newItem: CommuteRosterItem) => void;
-  onClearRoster: () => void;
+  monthlyRosters?: MonthlyRosterMap;
+  selectedMonths?: string[];
+  onDeleteEmployee: (id: string, month?: string) => void;
+  onEditEmployee?: (updatedItem: CommuteRosterItem, originalId?: string, month?: string) => void;
+  onAddEmployee?: (newItem: CommuteRosterItem, month?: string) => void;
+  onClearRoster: (month?: string) => void;
   onOpenImportModal: () => void;
 }
 
 export const RosterTab: React.FC<RosterTabProps> = ({
   rosterCalcs,
   customSites,
+  monthlyRosters,
+  selectedMonths = ["September"],
   onDeleteEmployee,
   onEditEmployee,
   onAddEmployee,
   onClearRoster,
   onOpenImportModal
 }) => {
+  const [activeMonthFilter, setActiveMonthFilter] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [districtFilter, setDistrictFilter] = useState('ALL');
   const [modeFilter, setModeFilter] = useState('ALL');
@@ -45,6 +51,7 @@ export const RosterTab: React.FC<RosterTabProps> = ({
 
   // Edit / Add Employee Modal State
   const [editingEmp, setEditingEmp] = useState<CommuteRosterItem | null>(null);
+  const [editingMonth, setEditingMonth] = useState<string | undefined>(undefined);
   const [originalEmpId, setOriginalEmpId] = useState<string>('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newEmpData, setNewEmpData] = useState<CommuteRosterItem>({
@@ -77,6 +84,7 @@ export const RosterTab: React.FC<RosterTabProps> = ({
 
   // Filtered Roster
   const filteredRoster = rosterCalcs.filter(emp => {
+    const matchesMonth = activeMonthFilter === 'ALL' || emp.month === activeMonthFilter;
     const matchesSearch = emp.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           emp.district.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           emp.siteMatchedName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -87,7 +95,7 @@ export const RosterTab: React.FC<RosterTabProps> = ({
     const matchesSite = siteFilter === 'ALL' || emp.site === siteFilter;
     const matchesWorkerType = workerTypeFilter === 'ALL' || emp.workerType === workerTypeFilter;
 
-    return matchesSearch && matchesDistrict && matchesMode && matchesSite && matchesWorkerType;
+    return matchesMonth && matchesSearch && matchesDistrict && matchesMode && matchesSite && matchesWorkerType;
   });
 
   const totalPages = Math.ceil(filteredRoster.length / itemsPerPage) || 1;
@@ -98,6 +106,7 @@ export const RosterTab: React.FC<RosterTabProps> = ({
 
   const handleStartEdit = (emp: RosterCalculationItem) => {
     setOriginalEmpId(emp.id);
+    setEditingMonth(emp.month);
     setEditingEmp({
       id: emp.id,
       district: emp.district,
@@ -113,7 +122,7 @@ export const RosterTab: React.FC<RosterTabProps> = ({
       alert("Employee ID cannot be empty.");
       return;
     }
-    onEditEmployee(editingEmp, originalEmpId);
+    onEditEmployee(editingEmp, originalEmpId, editingMonth);
     setEditingEmp(null);
   };
 
@@ -123,7 +132,7 @@ export const RosterTab: React.FC<RosterTabProps> = ({
       alert("Employee ID is required.");
       return;
     }
-    onAddEmployee(newEmpData);
+    onAddEmployee(newEmpData, activeMonthFilter !== 'ALL' ? activeMonthFilter : undefined);
     setIsAddModalOpen(false);
     setNewEmpData({
       id: '',
@@ -143,8 +152,8 @@ export const RosterTab: React.FC<RosterTabProps> = ({
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <Users className="w-5 h-5 text-slate-700" />
             <span>Employee List</span>
-            <span className="text-xs bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full font-medium border border-slate-200">
-              {rosterCalcs.length} Total Records
+            <span className="text-xs bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full font-medium border border-slate-200 font-mono">
+              {filteredRoster.length} Records
             </span>
             <div className="relative inline-flex items-center ml-1" ref={infoPopoverRef}>
               <button
@@ -160,7 +169,7 @@ export const RosterTab: React.FC<RosterTabProps> = ({
                   <div className="font-bold text-emerald-700 mb-1.5 flex items-center gap-1.5 border-b border-slate-100 pb-1.5">
                     <Info className="w-4 h-4 text-emerald-600" /> Employee List
                   </div>
-                  Displays employee records including Employee ID, Home Area, Work Site, Worker Type, and Transport Mode.
+                  Displays employee commute records across reporting months. You can inspect month-by-month or view the aggregate reporting period.
                 </div>
               )}
             </div>
@@ -170,23 +179,77 @@ export const RosterTab: React.FC<RosterTabProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={onOpenImportModal}
-            className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
           >
-            <Upload className="w-3.5 h-3.5 text-slate-500" />
-            Upload File (.xlsx/csv)
+            <Upload className="w-3.5 h-3.5 text-slate-600" />
+            Upload 12 Months Data (.xlsx/csv)
           </button>
 
-          {rosterCalcs.length > 0 && (
+          {filteredRoster.length > 0 && (
             <button
-              onClick={onClearRoster}
-              className="px-3.5 py-2 bg-slate-50 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-200 text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              onClick={() => onClearRoster(activeMonthFilter !== 'ALL' ? activeMonthFilter : undefined)}
+              className="px-3.5 py-2 bg-transparent hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-200 text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5 text-slate-500" />
-              Clear List
+              Clear {activeMonthFilter !== 'ALL' ? MONTH_ABBRS[activeMonthFilter] : 'List'}
             </button>
           )}
         </div>
       </div>
+
+      {/* 12-Month Quick Tab Selector */}
+      {monthlyRosters && (
+        <div className="bg-white rounded-xl border border-slate-200 p-2 shadow-2xs overflow-x-auto">
+          <div className="flex items-center gap-1.5 min-w-max">
+            <span className="text-[11px] font-semibold text-slate-400 px-2 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Month:</span>
+            </span>
+
+            <button
+              onClick={() => { setActiveMonthFilter('ALL'); setCurrentPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeMonthFilter === 'ALL'
+                  ? 'bg-slate-200 text-slate-900 border border-slate-300 font-bold shadow-2xs'
+                  : 'bg-transparent hover:bg-slate-100 text-slate-700 border border-slate-200/80'
+              }`}
+            >
+              All Selected ({rosterCalcs.length})
+            </button>
+
+            {MONTHS_LIST.map(month => {
+              const count = monthlyRosters[month]?.length || 0;
+              const isSelected = activeMonthFilter === month;
+              const isReportingSelected = selectedMonths.includes(month);
+
+              return (
+                <button
+                  key={month}
+                  onClick={() => { setActiveMonthFilter(month); setCurrentPage(1); }}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-slate-200 text-slate-900 border border-slate-300 font-bold shadow-2xs'
+                      : count > 0
+                        ? isReportingSelected 
+                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 font-semibold'
+                          : 'bg-transparent text-slate-700 border border-slate-200 hover:bg-slate-50'
+                        : 'bg-transparent text-slate-400 border border-dashed border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <span>{MONTH_ABBRS[month]}</span>
+                  {count > 0 ? (
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                      isSelected ? 'bg-slate-300 text-slate-900' : 'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {count}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Search & Filters Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -271,13 +334,16 @@ export const RosterTab: React.FC<RosterTabProps> = ({
         </div>
       </div>
 
-      {/* Roster Table with 6 Columns */}
+      {/* Employee List Table with Columns */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-white text-slate-500 text-xs font-medium border-b border-slate-200/80">
                 <th className="px-6 py-4 font-semibold text-slate-900">Employee ID</th>
+                {activeMonthFilter === 'ALL' && (
+                  <th className="px-4 py-4 font-semibold text-slate-900">Month</th>
+                )}
                 <th className="px-6 py-4 font-semibold text-slate-900">Home Area</th>
                 <th className="px-6 py-4 font-semibold text-slate-900">Work Site</th>
                 <th className="px-6 py-4 font-semibold text-slate-900">Worker Type</th>
@@ -352,10 +418,21 @@ export const RosterTab: React.FC<RosterTabProps> = ({
               {paginatedRoster.length > 0 ? (
                 paginatedRoster.map((emp) => {
                   return (
-                    <tr key={emp.id} className="hover:bg-slate-50/60 transition-colors">
+                    <tr key={`${emp.id}-${emp.month || 'default'}`} className="hover:bg-slate-50/60 transition-colors">
                       {/* 1. Employee ID */}
                       <td className="px-6 py-4 font-semibold text-slate-900 font-mono text-xs">{emp.id}</td>
                       
+                      {/* Optional Month Column */}
+                      {activeMonthFilter === 'ALL' && (
+                        <td className="px-4 py-4 font-medium text-slate-500 text-xs">
+                          {emp.month ? (
+                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-semibold">
+                              {MONTH_ABBRS[emp.month] || emp.month}
+                            </span>
+                          ) : '-'}
+                        </td>
+                      )}
+
                       {/* 2. Home Area */}
                       <td className="px-6 py-4 text-slate-700 font-medium text-xs">{emp.district}</td>
                       
@@ -364,22 +441,19 @@ export const RosterTab: React.FC<RosterTabProps> = ({
                       
                       {/* 4. Worker Type */}
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md font-medium text-[11px] border ${
-                          emp.workerType === 'Frontline' 
-                            ? 'bg-amber-50 text-amber-800 border-amber-200/90' 
-                            : 'bg-slate-100 text-slate-700 border-slate-200/80'
-                        }`}>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md font-medium text-[11px] bg-slate-100 text-slate-700 border border-slate-200">
                           {emp.workerType || 'Office'}
                         </span>
                       </td>
 
                       {/* 5. Transport Mode */}
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-[11px] font-medium shadow-2xs ${
-                          emp.mode === 'MTR' ? 'bg-emerald-500 text-white' :
-                          emp.mode === 'Bus' ? 'bg-amber-500 text-white' :
-                          emp.mode === 'Private Car' ? 'bg-blue-600 text-white' :
-                          'bg-slate-700 text-white'
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-medium border ${
+                          emp.mode === 'MTR' ? 'bg-emerald-50 text-emerald-800 border-emerald-200/90' :
+                          emp.mode === 'Bus' ? 'bg-amber-50 text-amber-800 border-amber-200/90' :
+                          emp.mode === 'Private Car' ? 'bg-blue-50 text-blue-800 border-blue-200/90' :
+                          emp.mode === 'Walk' ? 'bg-teal-50 text-teal-800 border-teal-200/90' :
+                          'bg-slate-50 text-slate-700 border-slate-200'
                         }`}>
                           {emp.mode}
                         </span>
@@ -396,7 +470,7 @@ export const RosterTab: React.FC<RosterTabProps> = ({
                             <Pencil className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => onDeleteEmployee(emp.id)}
+                            onClick={() => onDeleteEmployee(emp.id, emp.month)}
                             title="Delete Employee"
                             className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           >
@@ -409,8 +483,15 @@ export const RosterTab: React.FC<RosterTabProps> = ({
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-xs">
-                    No employees found matching the filters.
+                  <td colSpan={activeMonthFilter === 'ALL' ? 7 : 6} className="px-6 py-12 text-center text-slate-400 text-xs">
+                    {rosterCalcs.length === 0 ? (
+                      <div>
+                        <p className="font-semibold text-slate-700 mb-1">Employee list is currently empty.</p>
+                        <p className="text-slate-400 text-[11px]">Click "Upload 12 Months Data" above to upload your monthly Excel files.</p>
+                      </div>
+                    ) : (
+                      <p>No employees found matching the current filters.</p>
+                    )}
                   </td>
                 </tr>
               )}
@@ -451,118 +532,130 @@ export const RosterTab: React.FC<RosterTabProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="p-1.5 border border-slate-200 rounded-lg hover:bg-white disabled:opacity-40 transition-colors cursor-pointer bg-white"
-            >
-              <ChevronLeft className="w-4 h-4 text-slate-600" />
-            </button>
-            <span className="text-slate-600 font-medium px-1">
-              Page {currentPage} of {totalPages}
+            <span className="font-medium text-slate-600">
+              Page <strong className="font-semibold text-slate-900">{currentPage}</strong> of <strong className="font-semibold text-slate-900">{totalPages}</strong>
             </span>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="p-1.5 border border-slate-200 rounded-lg hover:bg-white disabled:opacity-40 transition-colors cursor-pointer bg-white"
-            >
-              <ChevronRight className="w-4 h-4 text-slate-600" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                className="p-1 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4 text-slate-700" />
+              </button>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                className="p-1 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+              >
+                <ChevronRight className="w-4 h-4 text-slate-700" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Edit Employee Modal */}
       {editingEmp && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
-            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Pencil className="w-4 h-4 text-blue-400" />
-                <h3 className="text-sm font-bold">Edit Employee Record</h3>
-              </div>
-              <button
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-base font-bold text-slate-900">Edit Employee Record</h3>
+              <button 
                 onClick={() => setEditingEmp(null)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4 text-xs">
+            <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Employee ID</label>
+                <label className="font-semibold text-slate-700 block mb-1">Employee ID</label>
                 <input
                   type="text"
                   value={editingEmp.id}
                   onChange={e => setEditingEmp({ ...editingEmp, id: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-mono focus:ring-2 focus:ring-blue-500 font-semibold"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono focus:ring-2 focus:ring-slate-900 bg-slate-50 text-slate-900 font-bold"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Home Area</label>
-                <select
-                  value={editingEmp.district}
-                  onChange={e => setEditingEmp({ ...editingEmp, district: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium"
-                >
-                  {renderAreaSelectOptions(false)}
-                </select>
+                <label className="font-semibold text-slate-700 block mb-1">Home Area</label>
+                <div className="relative">
+                  <select
+                    value={editingEmp.district}
+                    onChange={e => setEditingEmp({ ...editingEmp, district: e.target.value })}
+                    className="w-full appearance-none px-3 py-2 pr-8 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-slate-900 text-slate-800"
+                  >
+                    {renderAreaSelectOptions(false)}
+                  </select>
+                  <ChevronDown className="w-4 h-4 absolute right-2.5 top-2.5 text-slate-400 pointer-events-none" />
+                </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Work Site</label>
-                <select
-                  value={editingEmp.site || ''}
-                  onChange={e => setEditingEmp({ ...editingEmp, site: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium"
-                >
-                  {customSites.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
+                <label className="font-semibold text-slate-700 block mb-1">Assigned Work Site</label>
+                <div className="relative">
+                  <select
+                    value={editingEmp.site || customSites[0]?.id}
+                    onChange={e => setEditingEmp({ ...editingEmp, site: e.target.value })}
+                    className="w-full appearance-none px-3 py-2 pr-8 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-slate-900 text-slate-800"
+                  >
+                    {customSites.map(s => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.siteCode || s.id})</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 absolute right-2.5 top-2.5 text-slate-400 pointer-events-none" />
+                </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Worker Type</label>
-                <select
-                  value={editingEmp.workerType || 'Office'}
-                  onChange={e => setEditingEmp({ ...editingEmp, workerType: e.target.value as 'Office' | 'Frontline' })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium"
-                >
-                  <option value="Office">Office</option>
-                  <option value="Frontline">Frontline</option>
-                </select>
-              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Worker Type</label>
+                  <div className="relative">
+                    <select
+                      value={editingEmp.workerType || 'Office'}
+                      onChange={e => setEditingEmp({ ...editingEmp, workerType: e.target.value as any })}
+                      className="w-full appearance-none px-3 py-2 pr-8 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-slate-900 text-slate-800"
+                    >
+                      <option value="Office">Office</option>
+                      <option value="Frontline">Frontline</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 absolute right-2.5 top-2.5 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Transport Mode</label>
-                <select
-                  value={editingEmp.mode}
-                  onChange={e => setEditingEmp({ ...editingEmp, mode: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium"
-                >
-                  <option value="MTR">MTR</option>
-                  <option value="Bus">Bus</option>
-                  <option value="Private Car">Private Car</option>
-                  <option value="Walk">Walk</option>
-                </select>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Transport Mode</label>
+                  <div className="relative">
+                    <select
+                      value={editingEmp.mode}
+                      onChange={e => setEditingEmp({ ...editingEmp, mode: e.target.value as any })}
+                      className="w-full appearance-none px-3 py-2 pr-8 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-slate-900 text-slate-800"
+                    >
+                      <option value="MTR">MTR</option>
+                      <option value="Bus">Bus</option>
+                      <option value="Private Car">Private Car</option>
+                      <option value="Walk">Walk</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 absolute right-2.5 top-2.5 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
               <button
                 onClick={() => setEditingEmp(null)}
-                className="px-4 py-2 border border-slate-300 text-slate-700 font-semibold rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                className="px-4 py-2 bg-transparent hover:bg-slate-100 text-slate-700 border border-transparent hover:border-slate-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveEdit}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
               >
-                <Check className="w-4 h-4" />
                 Save Changes
               </button>
             </div>
@@ -572,96 +665,109 @@ export const RosterTab: React.FC<RosterTabProps> = ({
 
       {/* Add Employee Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
-            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Plus className="w-4 h-4 text-emerald-400" />
-                <h3 className="text-sm font-bold">Add New Employee</h3>
-              </div>
-              <button
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Plus className="w-4 h-4 text-emerald-600" />
+                <span>Add Employee</span>
+              </h3>
+              <button 
                 onClick={() => setIsAddModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4 text-xs">
+            <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Employee ID *</label>
+                <label className="font-semibold text-slate-700 block mb-1">Employee ID *</label>
                 <input
                   type="text"
-                  placeholder="e.g. EMP-1001"
+                  placeholder="e.g. EMP-001"
                   value={newEmpData.id}
                   onChange={e => setNewEmpData({ ...newEmpData, id: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-mono focus:ring-2 focus:ring-emerald-500 font-semibold"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono focus:ring-2 focus:ring-slate-900 bg-white text-slate-900 font-bold"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Home Area</label>
-                <select
-                  value={newEmpData.district}
-                  onChange={e => setNewEmpData({ ...newEmpData, district: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 font-medium"
-                >
-                  {renderAreaSelectOptions(false)}
-                </select>
+                <label className="font-semibold text-slate-700 block mb-1">Home Area</label>
+                <div className="relative">
+                  <select
+                    value={newEmpData.district}
+                    onChange={e => setNewEmpData({ ...newEmpData, district: e.target.value })}
+                    className="w-full appearance-none px-3 py-2 pr-8 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-slate-900 text-slate-800"
+                  >
+                    {renderAreaSelectOptions(false)}
+                  </select>
+                  <ChevronDown className="w-4 h-4 absolute right-2.5 top-2.5 text-slate-400 pointer-events-none" />
+                </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Work Site</label>
-                <select
-                  value={newEmpData.site || ''}
-                  onChange={e => setNewEmpData({ ...newEmpData, site: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 font-medium"
-                >
-                  {customSites.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
+                <label className="font-semibold text-slate-700 block mb-1">Assigned Work Site</label>
+                <div className="relative">
+                  <select
+                    value={newEmpData.site || customSites[0]?.id}
+                    onChange={e => setNewEmpData({ ...newEmpData, site: e.target.value })}
+                    className="w-full appearance-none px-3 py-2 pr-8 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-slate-900 text-slate-800"
+                  >
+                    {customSites.map(s => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.siteCode || s.id})</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 absolute right-2.5 top-2.5 text-slate-400 pointer-events-none" />
+                </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Worker Type</label>
-                <select
-                  value={newEmpData.workerType || 'Office'}
-                  onChange={e => setNewEmpData({ ...newEmpData, workerType: e.target.value as 'Office' | 'Frontline' })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 font-medium"
-                >
-                  <option value="Office">Office</option>
-                  <option value="Frontline">Frontline</option>
-                </select>
-              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Worker Type</label>
+                  <div className="relative">
+                    <select
+                      value={newEmpData.workerType || 'Office'}
+                      onChange={e => setNewEmpData({ ...newEmpData, workerType: e.target.value as any })}
+                      className="w-full appearance-none px-3 py-2 pr-8 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-slate-900 text-slate-800"
+                    >
+                      <option value="Office">Office</option>
+                      <option value="Frontline">Frontline</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 absolute right-2.5 top-2.5 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Transport Mode</label>
-                <select
-                  value={newEmpData.mode}
-                  onChange={e => setNewEmpData({ ...newEmpData, mode: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 font-medium"
-                >
-                  <option value="MTR">MTR</option>
-                  <option value="Bus">Bus</option>
-                  <option value="Private Car">Private Car</option>
-                  <option value="Walk">Walk</option>
-                </select>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Transport Mode</label>
+                  <div className="relative">
+                    <select
+                      value={newEmpData.mode}
+                      onChange={e => setNewEmpData({ ...newEmpData, mode: e.target.value as any })}
+                      className="w-full appearance-none px-3 py-2 pr-8 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-slate-900 text-slate-800"
+                    >
+                      <option value="MTR">MTR</option>
+                      <option value="Bus">Bus</option>
+                      <option value="Private Car">Private Car</option>
+                      <option value="Walk">Walk</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 absolute right-2.5 top-2.5 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="px-4 py-2 border border-slate-300 text-slate-700 font-semibold rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                className="px-4 py-2 bg-transparent hover:bg-slate-100 text-slate-700 border border-transparent hover:border-slate-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveNew}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
               >
-                <Check className="w-4 h-4" />
                 Add Employee
               </button>
             </div>
@@ -672,4 +778,3 @@ export const RosterTab: React.FC<RosterTabProps> = ({
     </div>
   );
 };
- 

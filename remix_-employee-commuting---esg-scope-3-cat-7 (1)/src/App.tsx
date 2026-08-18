@@ -2,13 +2,15 @@ import React, { useState, useMemo, useRef } from 'react';
 import { 
   ActiveTab, 
   CommuteRosterItem, 
-  CustomWorkSite 
+  CustomWorkSite,
+  MonthlyRosterMap
 } from './types';
 import { 
   DEFAULT_CUSTOM_SITES, 
   DEFAULT_WORKING_DAYS_OFFICE, 
   DEFAULT_WORKING_DAYS_FRONTLINE, 
-  DEFAULT_EMISSION_FACTORS 
+  DEFAULT_EMISSION_FACTORS,
+  MONTHS_LIST
 } from './utils/constants';
 import { calculateDistrictAndTotalEmissions } from './services/emissionCalculator';
 import { parseExcelOrCsvFile, exportToCsv } from './utils/fileParser';
@@ -22,11 +24,10 @@ import { SamplerTab } from './components/SamplerTab';
 import { WorkingDaysModal } from './components/WorkingDaysModal';
 import { SiteManagementModal } from './components/SiteManagementModal';
 import { SitePreviewModal } from './components/SitePreviewModal';
-import { CsvPreviewModal } from './components/CsvPreviewModal';
+import { MultiMonthRosterModal } from './components/MultiMonthRosterModal';
 import { ExportModal } from './components/ExportModal';
 
 import { 
-  BarChart3, 
   Users, 
   Building2, 
   Upload, 
@@ -58,8 +59,8 @@ export function App() {
   // Custom Work Sites State
   const [customSites, setCustomSites] = useState<CustomWorkSite[]>(DEFAULT_CUSTOM_SITES);
 
-  // Employee Roster State
-  const [employeeRoster, setEmployeeRoster] = useState<CommuteRosterItem[]>([]);
+  // 12-Month Employee Roster Map State
+  const [monthlyRosters, setMonthlyRosters] = useState<MonthlyRosterMap>({});
 
   // Selected Reporting Months Filter (Default to September)
   const [selectedMonths, setSelectedMonths] = useState<string[]>(["September"]);
@@ -76,19 +77,18 @@ export function App() {
   const [showWorkingDaysModal, setShowWorkingDaysModal] = useState(false);
   const [showSiteManagementModal, setShowSiteManagementModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showMultiMonthModal, setShowMultiMonthModal] = useState(false);
 
-  // Bulk File Upload Modal States
+  // Bulk File Upload Modal States for Sites
   const [rawSiteData, setRawSiteData] = useState<Record<string, any>[] | null>(null);
-  const [rawRosterData, setRawRosterData] = useState<Record<string, any>[] | null>(null);
 
   // Hidden File Input Refs
   const siteFileInputRef = useRef<HTMLInputElement>(null);
-  const rosterFileInputRef = useRef<HTMLInputElement>(null);
 
   // Primary Calculation Service Call
   const { districtCalcs, summary, rosterCalcs } = useMemo(() => {
     return calculateDistrictAndTotalEmissions(
-      employeeRoster,
+      monthlyRosters,
       customSites,
       selectedMonths,
       workingDaysOffice,
@@ -97,7 +97,7 @@ export function App() {
       roundTripMultiplier
     );
   }, [
-    employeeRoster,
+    monthlyRosters,
     customSites,
     selectedMonths,
     workingDaysOffice,
@@ -105,6 +105,11 @@ export function App() {
     emissionFactors,
     roundTripMultiplier
   ]);
+
+  // Total records across all 12 months for sidebar display
+  const totalRosterCount = useMemo(() => {
+    return Object.values(monthlyRosters).reduce((sum, list) => sum + list.length, 0);
+  }, [monthlyRosters]);
 
   // Site Management Handlers
   const handleUpdateSite = (updatedSite: CustomWorkSite) => {
@@ -120,26 +125,55 @@ export function App() {
     setRawSiteData(null);
   };
 
-  // Roster Management Handlers
-  const handleAddEmployee = (newEmp: CommuteRosterItem) => {
-    setEmployeeRoster(prev => [newEmp, ...prev]);
+  // Month-Aware Roster Management Handlers
+  const handleAddEmployee = (newEmp: CommuteRosterItem, targetMonth?: string) => {
+    const m = targetMonth || selectedMonths[0] || 'September';
+    setMonthlyRosters(prev => ({
+      ...prev,
+      [m]: [{ ...newEmp, month: m }, ...(prev[m] || [])]
+    }));
   };
 
-  const handleEditEmployee = (updatedEmp: CommuteRosterItem, originalId?: string) => {
-    setEmployeeRoster(prev => prev.map(e => (e.id === (originalId || updatedEmp.id) ? updatedEmp : e)));
+  const handleEditEmployee = (updatedEmp: CommuteRosterItem, originalId?: string, targetMonth?: string) => {
+    const m = targetMonth || updatedEmp.month || selectedMonths[0] || 'September';
+    setMonthlyRosters(prev => {
+      const list = prev[m] || [];
+      const updated = list.map(e => (e.id === (originalId || updatedEmp.id) ? { ...updatedEmp, month: m } : e));
+      return { ...prev, [m]: updated };
+    });
   };
 
-  const handleDeleteEmployee = (id: string) => {
-    setEmployeeRoster(prev => prev.filter(e => e.id !== id));
+  const handleDeleteEmployee = (id: string, targetMonth?: string) => {
+    if (targetMonth) {
+      setMonthlyRosters(prev => ({
+        ...prev,
+        [targetMonth]: (prev[targetMonth] || []).filter(e => e.id !== id)
+      }));
+    } else {
+      setMonthlyRosters(prev => {
+        const next: MonthlyRosterMap = {};
+        for (const [m, list] of Object.entries(prev)) {
+          next[m] = list.filter(e => e.id !== id);
+        }
+        return next;
+      });
+    }
   };
 
-  const handleClearRoster = () => {
-    setEmployeeRoster([]);
+  const handleClearRoster = (targetMonth?: string) => {
+    if (targetMonth) {
+      setMonthlyRosters(prev => ({
+        ...prev,
+        [targetMonth]: []
+      }));
+    } else {
+      setMonthlyRosters({});
+    }
   };
 
-  const handleConfirmBulkRosterUpload = (roster: CommuteRosterItem[]) => {
-    setEmployeeRoster(roster);
-    setRawRosterData(null);
+  const handleConfirmMultiMonthUpload = (newRosters: MonthlyRosterMap) => {
+    setMonthlyRosters(newRosters);
+    setShowMultiMonthModal(false);
   };
 
   // Working Days Handlers
@@ -156,7 +190,7 @@ export function App() {
     setWorkingDaysFrontline(DEFAULT_WORKING_DAYS_FRONTLINE);
   };
 
-  // File Upload File Pickers
+  // File Upload File Picker for Sites
   const handleSiteFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -169,38 +203,11 @@ export function App() {
     e.target.value = '';
   };
 
-  const handleRosterFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const data = await parseExcelOrCsvFile(file);
-      setRawRosterData(data);
-    } catch (err) {
-      alert("Failed to parse roster file. Please check file format.");
-    }
-    e.target.value = '';
-  };
-
-  // Export Data Handler
-  const handleExportData = () => {
-    const exportRows = rosterCalcs.map(r => ({
-      'Employee ID': r.id,
-      'Home Area': r.district,
-      'Transport Mode': r.mode,
-      'Work Site': r.siteMatchedName,
-      'Worker Role': r.workerType,
-      'Commute Distance (km)': r.distance,
-      'Monthly CO2 (kg)': r.monthlyCO2Kg,
-      'Annual CO2 (kg)': r.annualCO2Kg
-    }));
-    exportToCsv('Hong_Kong_Commute_Emissions_Report.csv', exportRows);
-  };
-
   // Reset Application Data
   const handleResetAllData = () => {
     if (window.confirm("Reset application to default configuration and sites?")) {
       setCustomSites(DEFAULT_CUSTOM_SITES);
-      setEmployeeRoster([]);
+      setMonthlyRosters({});
       setSelectedMonths(["September"]);
       setWorkingDaysOffice(DEFAULT_WORKING_DAYS_OFFICE);
       setWorkingDaysFrontline(DEFAULT_WORKING_DAYS_FRONTLINE);
@@ -268,7 +275,7 @@ export function App() {
                 <button
                   key={item.id}
                   onClick={item.onClick}
-                  className={`flex items-center gap-2.5 px-3 py-2 text-xs transition-all rounded-lg text-left w-full ${
+                  className={`flex items-center gap-2.5 px-3 py-2 text-xs transition-all rounded-lg text-left w-full cursor-pointer ${
                     activeTab === item.id
                       ? 'bg-slate-200/70 text-slate-900 font-semibold shadow-2xs'
                       : 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-200/40 font-normal'
@@ -291,25 +298,25 @@ export function App() {
                   className="flex items-center justify-between text-xs font-normal text-slate-400 px-2 py-1 w-full hover:text-slate-600 transition-colors cursor-pointer"
                 >
                   <span>Quick Actions</span>
-                    <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${quickActionsOpen ? "" : "-rotate-90"}`}/>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${quickActionsOpen ? "" : "-rotate-90"}`}/>
                 </button>
 
                 {quickActionsOpen && (
                   <div className="flex flex-col gap-1 mt-0.5">
                     <button
                       onClick={() => setShowSiteManagementModal(true)}
-                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-normal text-slate-700 hover:bg-slate-200/40 rounded-lg transition-colors text-left"
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-normal text-slate-700 hover:bg-slate-200/40 rounded-lg transition-colors text-left cursor-pointer"
                     >
                       <Building2 className="w-4 h-4 text-slate-500 shrink-0" />
                       <span>Work Sites ({customSites.length})</span>
                     </button>
 
                     <button
-                      onClick={() => rosterFileInputRef.current?.click()}
+                      onClick={() => setShowMultiMonthModal(true)}
                       className="flex items-center gap-2.5 px-3 py-2 text-xs font-normal text-slate-700 hover:bg-slate-200/40 rounded-lg transition-colors text-left cursor-pointer"
                     >
                       <Upload className="w-4 h-4 text-slate-500 shrink-0" />
-                      <span>Upload File (.xlsx/csv)</span>
+                      <span>Upload 12 Months (.xlsx/csv)</span>
                     </button>
 
                     <button
@@ -322,7 +329,7 @@ export function App() {
 
                     <button
                       onClick={() => setShowExportModal(true)}
-                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-normal text-slate-700 hover:bg-slate-200/40 rounded-lg transition-colors text-left"
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-normal text-slate-700 hover:bg-slate-200/40 rounded-lg transition-colors text-left cursor-pointer"
                     >
                       <Download className="w-4 h-4 text-slate-500 shrink-0" />
                       <span>Export Report</span>
@@ -337,8 +344,12 @@ export function App() {
           {sidebarOpen && (
             <div className="pt-4 border-t border-slate-200/80 text-[11px] text-slate-500 flex flex-col gap-1">
               <div className="flex items-center justify-between font-mono">
-                <span>Employee Records:</span>
-                <span className="font-bold text-slate-800">{employeeRoster.length}</span>
+                <span>Active Employees:</span>
+                <span className="font-bold text-slate-800">{summary.totalEmployees}</span>
+              </div>
+              <div className="flex items-center justify-between font-mono">
+                <span>Total Stored:</span>
+                <span className="font-bold text-slate-800">{totalRosterCount}</span>
               </div>
               <div className="flex items-center justify-between font-mono">
                 <span>Total CO₂e:</span>
@@ -352,7 +363,7 @@ export function App() {
       {/* Main Content View */}
       <div className="flex-1 flex flex-col min-w-0">
 
-        {/* Hidden File Upload Inputs */}
+        {/* Hidden File Upload Input for Sites */}
         <input 
           type="file" 
           ref={siteFileInputRef} 
@@ -360,15 +371,8 @@ export function App() {
           onChange={handleSiteFileSelect} 
           className="hidden" 
         />
-        <input 
-          type="file" 
-          ref={rosterFileInputRef} 
-          accept=".xlsx,.xls,.csv" 
-          onChange={handleRosterFileSelect} 
-          className="hidden" 
-        />
 
-        {/* Header - Cleaned up without redundant buttons/tabs */}
+        {/* Header */}
         <Header
           selectedMonths={selectedMonths}
           onChangeSelectedMonths={setSelectedMonths}
@@ -386,6 +390,7 @@ export function App() {
               summary={summary}
               districtCalcs={districtCalcs}
               customSites={customSites}
+              rosterCalcs={rosterCalcs}
               selectedMonths={selectedMonths}
               onExportClick={() => setShowExportModal(true)}
               onOpenSiteManagement={() => setShowSiteManagementModal(true)}
@@ -396,11 +401,13 @@ export function App() {
             <RosterTab
               rosterCalcs={rosterCalcs}
               customSites={customSites}
+              monthlyRosters={monthlyRosters}
+              selectedMonths={selectedMonths}
               onDeleteEmployee={handleDeleteEmployee}
               onEditEmployee={handleEditEmployee}
               onAddEmployee={handleAddEmployee}
               onClearRoster={handleClearRoster}
-              onOpenImportModal={() => rosterFileInputRef.current?.click()}
+              onOpenImportModal={() => setShowMultiMonthModal(true)}
             />
           )}
 
@@ -414,7 +421,7 @@ export function App() {
         <footer className="border-t border-slate-200 py-4 text-center text-xs transition-colors bg-white text-slate-500">
           <div className="w-full px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
             <span>Hong Kong Employee Commuting Scope 3 Category 7 Calculator</span>
-            <span>Methodology: 12-Month Aggregation & Hong Kong Area Commute Engine</span>
+            <span>Methodology: 12-Month Multi-Excel Import & Hong Kong Area Commute Engine</span>
           </div>
         </footer>
 
@@ -448,11 +455,12 @@ export function App() {
         onConfirmUpload={handleConfirmBulkSiteUpload}
       />
 
-      <CsvPreviewModal
-        isOpen={!!rawRosterData}
-        onClose={() => setRawRosterData(null)}
-        rawRosterData={rawRosterData || []}
-        onConfirmUpload={handleConfirmBulkRosterUpload}
+      {/* 12-Month Multi-Excel Roster Import Modal with Preview */}
+      <MultiMonthRosterModal
+        isOpen={showMultiMonthModal}
+        onClose={() => setShowMultiMonthModal(false)}
+        currentMonthlyRoster={monthlyRosters}
+        onConfirmUpload={handleConfirmMultiMonthUpload}
       />
 
       <ExportModal
@@ -460,6 +468,12 @@ export function App() {
         onClose={() => setShowExportModal(false)}
         rosterCalcs={rosterCalcs}
         selectedMonths={selectedMonths}
+        monthlyRosters={monthlyRosters}
+        customSites={customSites}
+        districtCalcs={districtCalcs}
+        summary={summary}
+        workingDaysOffice={workingDaysOffice}
+        workingDaysFrontline={workingDaysFrontline}
       />
 
     </div>

@@ -26,11 +26,11 @@ export const CsvPreviewModal: React.FC<CsvPreviewModalProps> = ({
     ) || availableHeaders[0] || '';
   };
 
-  const empIdCol = findBestHeader(['employee id', 'empid', 'emp id', 'employee_id', 'staff id', 'id', 'code']);
-  const districtCol = findBestHeader(['district', 'area', 'home', 'residential']);
-  const siteCol = findBestHeader(['site', 'workplace', 'office', 'destination']);
-  const workerTypeCol = findBestHeader(['worker', 'category', 'role', 'type']);
-  const modeCol = findBestHeader(['mode', 'transport', 'commute', 'method']);
+  const empIdCol = findBestHeader(['employee id', 'empid', 'emp id', 'employee_id', 'staff id', 'staff_id', 'emp_no', 'emp', 'id']);
+  const districtCol = findBestHeader(['district', 'area', 'home area', 'home', 'residential', 'origin']);
+  const siteCol = findBestHeader(['site code', 'sitecode', 'work site', 'worksite', 'workplace code', 'site_code', 'site', 'workplace', 'office', 'destination', 'location']);
+  const workerTypeCol = findBestHeader(['worker type', 'workertype', 'worker', 'category', 'role', 'type']);
+  const modeCol = findBestHeader(['mode', 'transport mode', 'transport', 'commute', 'method']);
 
   const parsedRoster: CommuteRosterItem[] = rawRosterData.map((row, idx) => {
     const rawId = String(row[empIdCol] || '').trim();
@@ -83,10 +83,10 @@ export const CsvPreviewModal: React.FC<CsvPreviewModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                Import Employee Commute Roster ({rawRosterData.length} Records)
+                Import Employee Commute List ({rawRosterData.length} Records)
               </h2>
               <p className="text-xs text-slate-500">
-                Preview roster data imported from Excel / CSV file before confirming
+                Preview employee list data imported from Excel / CSV file before confirming
               </p>
             </div>
           </div>
@@ -123,20 +123,17 @@ export const CsvPreviewModal: React.FC<CsvPreviewModalProps> = ({
                     <td className="px-4 py-2.5 text-slate-800">{r.district}</td>
                     <td className="px-4 py-2.5 text-slate-800">{r.site}</td>
                     <td className="px-4 py-2.5 text-slate-600">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border ${
-                        r.workerType === 'Frontline' 
-                          ? 'bg-amber-50 text-amber-800 border-amber-200/90' 
-                          : 'bg-slate-100 text-slate-700 border-slate-200/80'
-                      }`}>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
                         {r.workerType || 'Office'}
                       </span>
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium shadow-2xs ${
-                        r.mode === 'MTR' ? 'bg-emerald-500 text-white' :
-                        r.mode === 'Bus' ? 'bg-amber-500 text-white' :
-                        r.mode === 'Private Car' ? 'bg-blue-600 text-white' :
-                        'bg-slate-700 text-white'
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-medium border ${
+                        r.mode === 'MTR' ? 'bg-emerald-50 text-emerald-800 border-emerald-200/90' :
+                        r.mode === 'Bus' ? 'bg-amber-50 text-amber-800 border-amber-200/90' :
+                        r.mode === 'Private Car' ? 'bg-blue-50 text-blue-800 border-blue-200/90' :
+                        r.mode === 'Walk' ? 'bg-teal-50 text-teal-800 border-teal-200/90' :
+                        'bg-slate-50 text-slate-700 border-slate-200'
                       }`}>
                         {r.mode}
                       </span>

@@ -37,14 +37,19 @@ export interface CommuteRosterItem {
   housingType?: 'Public' | 'Private';
   site?: string;
   workerType?: 'Office' | 'Frontline';
+  month?: string;
 }
 
+export type MonthlyRosterMap = Record<string, CommuteRosterItem[]>;
+
 export interface RosterCalculationItem extends CommuteRosterItem {
+  month?: string;
   distance: number; // in km
   dailyCO2Kg: number;
   monthlyCO2Kg: number; // for currently selected month(s) average or selected month
   annualCO2Kg: number;  // 12-month exact sum
   siteMatchedName: string;
+  siteMatchedCode?: string;
 }
 
 export interface DistrictCalculation {

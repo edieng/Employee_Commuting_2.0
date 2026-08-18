@@ -116,7 +116,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         <div class="p-1 font-sans">
           <div class="font-bold text-slate-800 text-[12px]">${dist.name} (${dist.nameZH})</div>
           <div class="text-[10px] text-slate-500 mt-0.5">Employees: <span class="font-bold text-slate-700">${dist.employees.toLocaleString()}</span></div>
-          <div class="text-[10px] text-slate-500">Avg Commute: <span class="font-bold text-emerald-600">${dist.avgDistance.toFixed(1)} km</span></div>
           <div class="text-[10px] text-slate-500">Carbon Footprint: <span class="font-bold text-slate-700">${dist.tCO2eYear.toFixed(1)} t/yr</span></div>
         </div>
       `, { permanent: false, direction: 'top', opacity: 0.95 });

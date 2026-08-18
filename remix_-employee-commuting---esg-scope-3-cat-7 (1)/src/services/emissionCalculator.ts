@@ -9,7 +9,8 @@ import {
   DISTRICT_DATA, 
   DEFAULT_WORKING_DAYS_OFFICE, 
   DEFAULT_WORKING_DAYS_FRONTLINE, 
-  DEFAULT_EMISSION_FACTORS 
+  DEFAULT_EMISSION_FACTORS,
+  MONTHS_LIST
 } from '../utils/constants';
 
 /**
@@ -73,11 +74,14 @@ export function calculateRosterItemEmissions(
   const originLng = districtInfo ? districtInfo.lng : 114.15;
 
   // Find target work site
+  const siteInput = item.site ? item.site.trim().toLowerCase() : '';
   let targetSite = customSites.find(s => 
-    s.id === item.site || 
-    (s.siteCode && s.siteCode.toLowerCase() === item.site?.toLowerCase()) ||
-    (item.site && s.name.toLowerCase().includes(item.site.toLowerCase())) ||
-    (item.site && item.site.toLowerCase().includes(s.name.toLowerCase()))
+    (s.siteCode && s.siteCode.toLowerCase() === siteInput) ||
+    s.id.toLowerCase() === siteInput ||
+    (siteInput && s.name.toLowerCase().includes(siteInput)) ||
+    (siteInput && siteInput.includes(s.name.toLowerCase())) ||
+    (s.siteCode && siteInput.includes(s.siteCode.toLowerCase())) ||
+    (s.siteCode && s.siteCode.toLowerCase().includes(siteInput))
   );
   if (!targetSite) {
     targetSite = customSites[0] || { id: "SITE-QB", name: "Quarry Bay Hub", district: "Quarry Bay / Taikoo", lat: 22.2854, lng: 114.2128, staffCount: 100 };
@@ -111,15 +115,17 @@ export function calculateRosterItemEmissions(
     dailyCO2Kg,
     monthlyCO2Kg,
     annualCO2Kg,
-    siteMatchedName: targetSite.name
+    siteMatchedName: targetSite.name,
+    siteMatchedCode: targetSite.siteCode || targetSite.id || 'SITE-01'
   };
 }
 
 /**
- * Primary calculation engine for aggregated district and total company emissions
+ * Primary calculation engine for aggregated district and total company emissions.
+ * Supports both a single roster or a 12-month MonthlyRosterMap (Record<string, CommuteRosterItem[]>).
  */
 export function calculateDistrictAndTotalEmissions(
-  roster: CommuteRosterItem[],
+  rosterInput: CommuteRosterItem[] | Record<string, CommuteRosterItem[]>,
   customSites: CustomWorkSite[],
   selectedMonths: string[],
   workingDaysOfficeMap: Record<string, number> = DEFAULT_WORKING_DAYS_OFFICE,
@@ -131,25 +137,66 @@ export function calculateDistrictAndTotalEmissions(
   summary: TotalSummary;
   rosterCalcs: RosterCalculationItem[];
 } {
-  // If roster exists, calculate from roster
   const activeSites = customSites.filter(s => s.visible !== false);
   const targetSiteList = activeSites.length > 0 ? activeSites : customSites;
 
-  const rosterCalcs = roster.map(item => 
-    calculateRosterItemEmissions(
-      item, 
-      targetSiteList, 
-      selectedMonths, 
-      workingDaysOfficeMap, 
-      workingDaysFrontlineMap, 
-      emissionFactors, 
-      roundTripMultiplier
-    )
-  );
+  // Convert input into a normalized 12-month map
+  const monthlyRosterMap: Record<string, CommuteRosterItem[]> = {};
+  
+  if (Array.isArray(rosterInput)) {
+    // If a flat array was passed, assign it to all 12 months
+    MONTHS_LIST.forEach(month => {
+      monthlyRosterMap[month] = rosterInput;
+    });
+  } else {
+    // If an object map was passed, ensure all 12 months have an array
+    MONTHS_LIST.forEach(month => {
+      monthlyRosterMap[month] = rosterInput[month] || [];
+    });
+  }
 
-  // District breakdown maps
+  // Calculate roster items per month
+  // 1. Calculate each month's roster emissions
+  const monthCalculatedRosters: Record<string, RosterCalculationItem[]> = {};
+  
+  MONTHS_LIST.forEach(month => {
+    const list = monthlyRosterMap[month] || [];
+    monthCalculatedRosters[month] = list.map(item => {
+      const calc = calculateRosterItemEmissions(
+        item,
+        targetSiteList,
+        [month], // single month for this calculation
+        workingDaysOfficeMap,
+        workingDaysFrontlineMap,
+        emissionFactors,
+        roundTripMultiplier
+      );
+      return {
+        ...calc,
+        month
+      };
+    });
+  });
+
+  // Calculate annual total emissions per district across ALL 12 months
+  const districtAnnualEmissionsMap: Record<string, number> = {};
+  MONTHS_LIST.forEach(month => {
+    const items = monthCalculatedRosters[month] || [];
+    items.forEach(r => {
+      districtAnnualEmissionsMap[r.district] = (districtAnnualEmissionsMap[r.district] || 0) + r.monthlyCO2Kg;
+    });
+  });
+
+  // Items for currently selected months
+  const selectedMonthsItems: RosterCalculationItem[] = [];
+  selectedMonths.forEach(m => {
+    const items = monthCalculatedRosters[m] || [];
+    selectedMonthsItems.push(...items);
+  });
+
+  // District breakdown maps for the selected reporting months
   const districtMap: Record<string, {
-    employees: number;
+    totalEmployeesInMonths: number;
     totalDist: number;
     pubCount: number;
     priCount: number;
@@ -166,10 +213,10 @@ export function calculateDistrictAndTotalEmissions(
     localCount: number;
   }> = {};
 
-  // Initialize all known 18/34 districts
+  // Initialize districts
   Object.keys(DISTRICT_DATA).forEach(dKey => {
     districtMap[dKey] = {
-      employees: 0,
+      totalEmployeesInMonths: 0,
       totalDist: 0,
       pubCount: 0,
       priCount: 0,
@@ -181,18 +228,17 @@ export function calculateDistrictAndTotalEmissions(
       priDistKTSum: 0,
       modesCount: { MTR: 0, Bus: 0, 'Private Car': 0, Walk: 0 },
       selectedMonthsCO2Kg: 0,
-      annualCO2Kg: 0,
+      annualCO2Kg: districtAnnualEmissionsMap[dKey] || 0,
       walkingCount: 0,
       localCount: 0
     };
   });
 
-  if (rosterCalcs.length > 0) {
-    // Populate from actual employee roster
-    rosterCalcs.forEach(r => {
+  if (selectedMonthsItems.length > 0) {
+    selectedMonthsItems.forEach(r => {
       if (!districtMap[r.district]) {
         districtMap[r.district] = {
-          employees: 0,
+          totalEmployeesInMonths: 0,
           totalDist: 0,
           pubCount: 0,
           priCount: 0,
@@ -204,14 +250,14 @@ export function calculateDistrictAndTotalEmissions(
           priDistKTSum: 0,
           modesCount: { MTR: 0, Bus: 0, 'Private Car': 0, Walk: 0 },
           selectedMonthsCO2Kg: 0,
-          annualCO2Kg: 0,
+          annualCO2Kg: districtAnnualEmissionsMap[r.district] || 0,
           walkingCount: 0,
           localCount: 0
         };
       }
 
       const dEntry = districtMap[r.district];
-      dEntry.employees += 1;
+      dEntry.totalEmployeesInMonths += 1;
       dEntry.totalDist += r.distance;
       if (r.housingType === 'Public') {
         dEntry.pubCount += 1;
@@ -232,45 +278,48 @@ export function calculateDistrictAndTotalEmissions(
 
       dEntry.modesCount[r.mode] = (dEntry.modesCount[r.mode] || 0) + 1;
       dEntry.selectedMonthsCO2Kg += r.monthlyCO2Kg;
-      dEntry.annualCO2Kg += r.annualCO2Kg;
 
       if (r.mode === 'Walk') dEntry.walkingCount += 1;
       if (r.distance < 2.0) dEntry.localCount += 1;
     });
   }
 
+  const numSelectedMonths = Math.max(selectedMonths.length, 1);
+
   // Format final district calculations
   const districtCalcs: DistrictCalculation[] = Object.entries(districtMap)
-    .filter(([_, data]) => data.employees > 0)
+    .filter(([_, data]) => data.totalEmployeesInMonths > 0 || data.annualCO2Kg > 0)
     .map(([dKey, data]) => {
       const dConfig = DISTRICT_DATA[dKey] || { nameZH: dKey };
-      const emp = data.employees || 1;
+      const rawRecordsCount = data.totalEmployeesInMonths || 1;
+      // Average active employees per month for the selected period
+      const effectiveEmployees = Math.round(data.totalEmployeesInMonths / numSelectedMonths);
       const pubCount = data.pubCount || 1;
       const priCount = data.priCount || 1;
 
       // Mode percentages
       const splits: Record<string, number> = {};
       Object.entries(data.modesCount).forEach(([mode, count]) => {
-        splits[mode] = Number(((count / emp) * 100).toFixed(1));
+        splits[mode] = Number(((count / rawRecordsCount) * 100).toFixed(1));
       });
 
       return {
         name: dKey,
         nameZH: dConfig.nameZH,
-        employees: data.employees,
-        avgDistance: Number((data.totalDist / emp).toFixed(1)),
-        pubRatio: Number((pubCount / emp).toFixed(2)),
+        employees: effectiveEmployees > 0 ? effectiveEmployees : (data.totalEmployeesInMonths > 0 ? 1 : 0),
+        avgDistance: Number((data.totalDist / rawRecordsCount).toFixed(1)),
+        pubRatio: Number((pubCount / rawRecordsCount).toFixed(2)),
         avgPubDist: Number((data.pubDistSum / pubCount).toFixed(1)),
         avgPriDist: Number((data.priDistSum / priCount).toFixed(1)),
         avgPubDistQB: Number((data.pubDistQBSum / pubCount).toFixed(1)),
-        avgPriDistQB: Number((data.priDistQBSum / priCount).toFixed(1)),
+        avgPriDistQB: Number((data.priDistQBSum / pubCount).toFixed(1)),
         avgPubDistKT: Number((data.pubDistKTSum / pubCount).toFixed(1)),
-        avgPriDistKT: Number((data.priDistKTSum / priCount).toFixed(1)),
+        avgPriDistKT: Number((data.priDistKTSum / pubCount).toFixed(1)),
         splits,
         tCO2eSelectedMonths: Number((data.selectedMonthsCO2Kg / 1000).toFixed(2)),
         tCO2eYear: Number((data.annualCO2Kg / 1000).toFixed(2)),
-        employeesWalking: data.walkingCount,
-        employeesLocal: data.localCount
+        employeesWalking: Math.round(data.walkingCount / numSelectedMonths),
+        employeesLocal: Math.round(data.localCount / numSelectedMonths)
       };
     });
 
@@ -280,7 +329,7 @@ export function calculateDistrictAndTotalEmissions(
     districtCalcs.reduce((acc, curr) => acc + curr.tCO2eSelectedMonths, 0).toFixed(2)
   );
   const totalAnnualCO2Tons = Number(
-    districtCalcs.reduce((acc, curr) => acc + curr.tCO2eYear, 0).toFixed(2)
+    Object.values(districtAnnualEmissionsMap).reduce((acc, curr) => acc + (curr / 1000), 0).toFixed(2)
   );
 
   const weightedDistSum = districtCalcs.reduce((acc, curr) => acc + (curr.avgDistance * curr.employees), 0);
@@ -296,5 +345,9 @@ export function calculateDistrictAndTotalEmissions(
     selectedMonthNames: selectedMonths
   };
 
-  return { districtCalcs, summary, rosterCalcs };
+  return { 
+    districtCalcs, 
+    summary, 
+    rosterCalcs: selectedMonthsItems 
+  };
 }
