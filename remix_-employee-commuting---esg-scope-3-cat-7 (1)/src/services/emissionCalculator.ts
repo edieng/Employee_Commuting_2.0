@@ -306,7 +306,7 @@ export function calculateDistrictAndTotalEmissions(
       return {
         name: dKey,
         nameZH: dConfig.nameZH,
-        employees: effectiveEmployees > 0 ? effectiveEmployees : (data.totalEmployeesInMonths > 0 ? 1 : 0),
+        employees: effectiveEmployees,
         avgDistance: Number((data.totalDist / rawRecordsCount).toFixed(1)),
         pubRatio: Number((pubCount / rawRecordsCount).toFixed(2)),
         avgPubDist: Number((data.pubDistSum / pubCount).toFixed(1)),
@@ -323,8 +323,8 @@ export function calculateDistrictAndTotalEmissions(
       };
     });
 
-  // Calculate totals
-  const totalEmployees = districtCalcs.reduce((acc, curr) => acc + curr.employees, 0);
+  // Calculate totals - average monthly employee count across selected months
+  const totalEmployees = Math.round(selectedMonthsItems.length / numSelectedMonths);
   const selectedMonthsCO2Tons = Number(
     districtCalcs.reduce((acc, curr) => acc + curr.tCO2eSelectedMonths, 0).toFixed(2)
   );

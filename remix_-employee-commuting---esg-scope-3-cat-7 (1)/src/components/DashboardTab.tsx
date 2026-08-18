@@ -38,22 +38,19 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Compute employee count per work site
+  // Compute employee count per work site (average per month when multiple months are selected)
+  const numSelectedMonths = Math.max(selectedMonths.length, 1);
   const siteBreakdown = activeSites.map(site => {
-    const empCount = rosterCalcs.filter(r => 
+    const siteRecords = rosterCalcs.filter(r => 
       r.siteMatchedName.toLowerCase() === site.name.toLowerCase() ||
       r.site === site.id ||
       (site.siteCode && r.site?.toLowerCase() === site.siteCode.toLowerCase()) ||
       (r.site && site.name.toLowerCase().includes(r.site.toLowerCase()))
-    ).length;
+    );
 
-    const siteEmissionsSelected = rosterCalcs
-      .filter(r => 
-        r.siteMatchedName.toLowerCase() === site.name.toLowerCase() ||
-        r.site === site.id ||
-        (site.siteCode && r.site?.toLowerCase() === site.siteCode.toLowerCase()) ||
-        (r.site && site.name.toLowerCase().includes(r.site.toLowerCase()))
-      )
+    const empCount = Math.round(siteRecords.length / numSelectedMonths);
+
+    const siteEmissionsSelected = siteRecords
       .reduce((sum, r) => sum + (r.monthlyCO2Kg / 1000), 0);
 
     const siteEmissionsAnnual = rosterCalcs
