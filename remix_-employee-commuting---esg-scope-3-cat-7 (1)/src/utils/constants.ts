@@ -227,9 +227,9 @@ export const AREA_HIERARCHY: AreaRegionGroup[] = [
  * - Walk rule: If distance <= 1.2 km, assume Walk (100%)
  */
 export const REGIONAL_TRANSPORT_RATIOS = {
-  HK_Island: { MTR: 0.70, Bus: 0.27, 'Private Car': 0.03 },
-  NT: { MTR: 0.40, Bus: 0.57, 'Private Car': 0.03 },
-  Kowloon: { MTR: 0.60, Bus: 0.37, 'Private Car': 0.03 }
+  HK_Island: { MTR: 0.4539, Bus: 0.5161, 'Private Car': 0.03 },
+  NT: { MTR: 0.5152, Bus: 0.4548, 'Private Car': 0.03 },
+  Kowloon: { MTR: 0.5152, Bus: 0.4548, 'Private Car': 0.03 }
 };
 
 export function getRegionForArea(areaName: string): 'HK_Island' | 'Kowloon' | 'NT' {
