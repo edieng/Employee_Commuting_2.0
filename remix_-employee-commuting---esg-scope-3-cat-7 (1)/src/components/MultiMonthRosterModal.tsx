@@ -291,9 +291,6 @@ export const MultiMonthRosterModal: React.FC<MultiMonthRosterModalProps> = ({
                   {monthsWithData.length} / 12 Months Loaded
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Upload separate Excel / CSV files for each of the 12 months (or batch upload all 12 at once).
-              </p>
             </div>
           </div>
 

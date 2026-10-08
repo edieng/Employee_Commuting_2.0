@@ -89,7 +89,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
       <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
         <div>
           <div className="flex items-center justify-between text-slate-500 h-6">
-            <span className="text-xs font-normal text-slate-500">Avg Commute Distance</span>
+            <span className="text-xs font-normal text-slate-500">Average Commute Distance</span>
             <div className="h-6" />
           </div>
           <div className="mt-3">

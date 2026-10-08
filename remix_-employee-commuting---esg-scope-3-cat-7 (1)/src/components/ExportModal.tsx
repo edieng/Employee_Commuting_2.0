@@ -218,7 +218,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               'Home Area (EN)': d.name,
               'Home Area (ZH)': d.nameZH,
               'Resident Employees': count,
-              'Avg One-Way Distance (km)': Number(d.avgDistance.toFixed(2)),
+              'Average One-Way Distance (km)': Number(d.avgDistance.toFixed(2)),
               'Emissions (tCO₂e)': Number(distEmissions.toFixed(4))
             };
           }).filter(d => d['Resident Employees'] > 0);
